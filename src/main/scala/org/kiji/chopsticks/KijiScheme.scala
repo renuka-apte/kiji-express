@@ -49,6 +49,13 @@ import org.kiji.schema.KijiRowData
 import org.kiji.schema.KijiTable
 import org.kiji.schema.KijiTableWriter
 import org.kiji.schema.KijiURI
+import java.util
+import org.apache.avro.specific.{SpecificRecordBase, SpecificFixed}
+import org.apache.avro.generic.{GenericData, GenericFixed, IndexedRecord}
+import java.io.InvalidClassException
+import org.kiji.schema.layout.{InvalidLayoutException, KijiTableLayout}
+import org.apache.avro.generic.GenericData.Fixed
+import org.apache.avro.Schema
 
 /**
  * A scheme that can source and sink data from a Kiji table. This scheme is responsible for
@@ -65,7 +72,7 @@ class KijiScheme(
     private val timeRange: TimeRange,
     private val columns: Map[String, ColumnRequest])
     extends Scheme[JobConf, RecordReader[KijiKey, KijiValue], OutputCollector[_, _],
-        KijiValue, KijiTableWriter] {
+        KijiSourceContext, KijiSinkContext] {
   import KijiScheme._
 
   /** Fields expected to be in any tuples processed by this scheme. */
@@ -111,8 +118,15 @@ class KijiScheme(
    */
   override def sourcePrepare(
       process: FlowProcess[JobConf],
-      sourceCall: SourceCall[KijiValue, RecordReader[KijiKey, KijiValue]]) {
-    sourceCall.setContext(sourceCall.getInput().createValue())
+      sourceCall: SourceCall[KijiSourceContext, RecordReader[KijiKey, KijiValue]]) {
+    val conf: JobConf = process.getConfigCopy
+    val tableUri:KijiURI = KijiURI.newBuilder(conf.get(KijiConfKeys.KIJI_INPUT_TABLE_URI)).build()
+    doAndRelease(Kiji.Factory.open(tableUri)) { kiji: Kiji =>
+      doAndRelease(kiji.openTable(tableUri.getTable())) { table: KijiTable =>
+      // Set the sink context to the table layout.
+        sourceCall.setContext(KijiSourceContext(sourceCall.getInput().createValue(), table.getLayout))
+      }
+    }
   }
 
   /**
@@ -125,9 +139,9 @@ class KijiScheme(
    */
   override def source(
       process: FlowProcess[JobConf],
-      sourceCall: SourceCall[KijiValue, RecordReader[KijiKey, KijiValue]]): Boolean = {
+      sourceCall: SourceCall[KijiSourceContext, RecordReader[KijiKey, KijiValue]]): Boolean = {
     // Get the current key/value pair.
-    val value: KijiValue = sourceCall.getContext()
+    val KijiSourceContext(value, layout) = sourceCall.getContext()
 
     // Get the first row where all the requested columns are present,
     // and use that to set the result tuple.
@@ -153,7 +167,7 @@ class KijiScheme(
    */
   override def sourceCleanup(
       process: FlowProcess[JobConf],
-      sourceCall: SourceCall[KijiValue, RecordReader[KijiKey, KijiValue]]) {
+      sourceCall: SourceCall[KijiSourceContext, RecordReader[KijiKey, KijiValue]]) {
     sourceCall.setContext(null)
   }
 
@@ -182,7 +196,7 @@ class KijiScheme(
    */
   override def sinkPrepare(
       process: FlowProcess[JobConf],
-      sinkCall: SinkCall[KijiTableWriter, OutputCollector[_, _]]) {
+      sinkCall: SinkCall[KijiSinkContext, OutputCollector[_, _]]) {
     // Open a table writer.
     val uriString: String = process.getConfigCopy().get(KijiConfKeys.KIJI_OUTPUT_TABLE_URI)
     val uri: KijiURI = KijiURI.newBuilder(uriString).build()
@@ -192,7 +206,7 @@ class KijiScheme(
     doAndRelease(Kiji.Factory.open(uri)) { kiji: Kiji =>
       doAndRelease(kiji.openTable(uri.getTable())) { table: KijiTable =>
         // Set the sink context to an opened KijiTableWriter.
-        sinkCall.setContext(table.openTableWriter())
+        sinkCall.setContext(KijiSinkContext(table.openTableWriter(), table.getLayout))
       }
     }
   }
@@ -206,13 +220,13 @@ class KijiScheme(
    */
   override def sink(
       process: FlowProcess[JobConf],
-      sinkCall: SinkCall[KijiTableWriter, OutputCollector[_, _]]) {
+      sinkCall: SinkCall[KijiSinkContext, OutputCollector[_, _]]) {
     // Retrieve writer from the scheme's context.
-    val writer: KijiTableWriter = sinkCall.getContext()
+    val KijiSinkContext(writer, layout) = sinkCall.getContext()
 
     // Write the tuple out.
     val output: TupleEntry = sinkCall.getOutgoingEntry()
-    putTuple(columns, getSinkFields(), output, writer)
+    putTuple(columns, getSinkFields(), output, writer, layout)
   }
 
   /**
@@ -224,9 +238,9 @@ class KijiScheme(
    */
   override def sinkCleanup(
       process: FlowProcess[JobConf],
-      sinkCall: SinkCall[KijiTableWriter, OutputCollector[_, _]]) {
+      sinkCall: SinkCall[KijiSinkContext, OutputCollector[_, _]]) {
     // Close the writer.
-    sinkCall.getContext().close()
+    sinkCall.getContext().kijiTableWriter.close()
     sinkCall.setContext(null)
   }
 
@@ -282,6 +296,7 @@ object KijiScheme {
 
     // Add the row's EntityId to the tuple.
     result.add(row.getEntityId())
+    // TODO(CHOP-???): Validate that the first field is 'entityId'.
     iterator.next()
 
     // Add the rest.
@@ -290,14 +305,53 @@ object KijiScheme {
         // Build the tuple, by adding each requested value into result.
         .foreach {
           case ColumnFamily(family, _) => {
-            result.add (row.getValues(family))
+            val familyValues: java.util.NavigableMap[String,
+              java.util.NavigableMap[java.lang.Long, AnyRef]] = row.getValues[AnyRef](family)
+            val scalaFamilyValues: collection.mutable.Map[String, java.util.NavigableMap[java.lang.Long, AnyRef]] = familyValues.asScala
+            result.add(scalaFamilyValues.map{ kv:(String, util.NavigableMap[java.lang.Long, AnyRef]) =>
+              ((kv._1), convertKijiValuesToScalaTypes(kv._2))
+            })
           }
           case QualifiedColumn(family, qualifier, _) => {
-            result.add(row.getValues(family, qualifier))
+            result.add(convertKijiValuesToScalaTypes(row.getValues(family, qualifier)))
           }
         }
-
     return result
+  }
+
+  private[chopsticks] def convertKijiValuesToScalaTypes[T](map: java.util.NavigableMap[java.lang.Long, T]):Map[Long, Any] = {
+    (map.asScala.map(kv => (kv._1.longValue(), convertType(kv._2)))).toMap
+  }
+
+  private def convertType[T](columnValue: T): Any = {
+    if (null == columnValue) null
+    else
+      columnValue match {
+        case i: java.lang.Integer => i
+        case b: java.lang.Boolean => b
+        case l: java.lang.Long => l
+        case f: java.lang.Float => f
+        case d: java.lang.Double => d
+        // bytes
+        case bb: java.nio.ByteBuffer => bb.array()
+        // string
+        case s: java.lang.CharSequence => s.toString()
+        // array
+        case l: java.util.List[Any] => {l.asScala.toList.map(elem => convertType(elem))}
+        // map
+        case m: java.util.Map[Any, Any] => m.asScala.toMap.map(kv =>
+          (convertType(kv._1), convertType(kv._2)))
+        // fixed
+        case f: SpecificFixed => f.bytes().array
+        // null field
+        case n: java.lang.Void => null
+        // enum
+        case e: java.lang.Enum[Any] => e
+        // avro record or object
+        case a: IndexedRecord => a
+        // any other type we don't understand
+        case _ => throw new InvalidClassException("Unable to convert type")
+      }
   }
 
   // TODO(CHOP-35): Use an output format that writes to HFiles.
@@ -309,11 +363,12 @@ object KijiScheme {
    * @param output Tuple to write out.
    * @param writer KijiTableWriter to use to write.
    */
-  private[chopsticks] def putTuple(
+  private[chopsticks] def putTuple [T](
       columns: Map[String, ColumnRequest],
       fields: Fields,
       output: TupleEntry,
-      writer: KijiTableWriter) {
+      writer: KijiTableWriter,
+      layout: KijiTableLayout) {
     val iterator = fields.iterator().asScala
 
     // Get the entityId.
@@ -324,21 +379,75 @@ object KijiScheme {
     iterator.foreach { fieldName =>
       columns(fieldName.toString()) match {
         case ColumnFamily(family, _) => {
+          val kijiCol = new KijiColumnName(family)
           writer.put(
               entityId,
               family,
               null,
-              output.getObject(fieldName.toString()))
+              {
+                val familyMap =
+                  output.getObject(fieldName.toString()).asInstanceOf[Map[String, Map[Long, T]]]
+                val resMap: util.NavigableMap[String, util.NavigableMap[java.lang.Long, Any]] =
+                  new java.util.TreeMap(familyMap.map(kv =>(
+                    new java.lang.String(kv._1),
+                    convertScalaTypesToKijiValues(kv._2, layout, kijiCol)
+                    )).asJava)
+              })
         }
         case QualifiedColumn(family, qualifier, _) => {
+          val kijiCol = new KijiColumnName(family, qualifier)
           writer.put(
               entityId,
               family,
               qualifier,
-              output.getObject(fieldName.toString()))
+              convertScalaTypesToKijiValues(output.getObject(
+                fieldName.toString()).asInstanceOf[Map[Long, T]], layout, kijiCol))
         }
       }
     }
+  }
+
+  private[chopsticks] def convertScalaTypesToKijiValues[T](map:Map[Long, T], layout: KijiTableLayout, columnName: KijiColumnName)
+    :java.util.NavigableMap[java.lang.Long, Any] = {
+    new java.util.TreeMap(map.map(kv => (java.lang.Long.valueOf(kv._1), convertScalaTypes(kv._2, layout, columnName))).asJava)
+  }
+
+  private def convertScalaTypes[T](columnValue: T, layout: KijiTableLayout, columnName: KijiColumnName): Any = {
+    if (null == columnValue) null
+    else
+      columnValue match {
+        case i: Int => i
+        case b: Boolean => b
+        case l: Long => l
+        case f: Float => f
+        case d: Double => d
+        // bytes or fixed
+        case bb: Array[Byte] => {
+          // this case will have an inline schema with its description
+          val schemaDesc = layout.getCellSchema(columnName).getValue()
+          if (schemaDesc == "\"bytes\"")
+            java.nio.ByteBuffer.wrap(bb)
+          else if (schemaDesc == "\"fixed\"")
+            new Fixed(new Schema.Parser().parse(schemaDesc), bb)
+          else
+            throw new InvalidLayoutException("Invalid schema for column")
+        }
+        // string
+        case s: String => s
+        // array
+        // we don't pass column name down while converting individual elements to avoid confusion
+        case l: List[Any] => (l.map(elem => convertScalaTypes(elem, layout, null))).asJava
+        // map
+        case m: Map[Any, Any] => new java.util.TreeMap(
+          // we don't pass column name down while converting individual elements to avoid confusion
+          m.map(kv => (convertScalaTypes(kv._1, layout, null), convertScalaTypes(kv._2, layout, null))).asJava)
+        // enum
+        case e: java.lang.Enum[Any] => e
+        // avro record or object
+        case a: IndexedRecord => a
+        // any other type we don't understand
+        case _ => throw new InvalidClassException("Unable to convert type")
+      }
   }
 
   private[chopsticks] def buildRequest(

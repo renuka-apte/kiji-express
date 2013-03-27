@@ -315,7 +315,7 @@ object KijiSource {
       extends KijiScheme(timeRange, columns) {
     override def sinkCleanup(
         process: FlowProcess[JobConf],
-        sinkCall: SinkCall[KijiTableWriter, OutputCollector[_, _]]) {
+        sinkCall: SinkCall[KijiSinkContext, OutputCollector[_, _]]) {
       super.sink(process, sinkCall)
 
       // Store the output table.

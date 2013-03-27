@@ -281,7 +281,7 @@ class KijiSourceSuite
 /** Companion object for KijiSourceSuite. Contains helper functions and test jobs. */
 object KijiSourceSuite extends KijiSuite {
   /** Convenience method for getting the latest value in a timeline. */
-  def getMostRecent[T](timeline: NavigableMap[Long, T]): T = timeline.firstEntry().getValue()
+  def getMostRecent[T](timeline: Map[Long, T]): T = timeline.head._2
 
   /**
    * A job that extracts the most recent string value from the column "family:column1" for all rows
@@ -295,7 +295,7 @@ object KijiSourceSuite extends KijiSuite {
     // Setup input to bind values from the "family:column1" column to the symbol 'word.
     KijiInput(args("input"))("family:column1" -> 'word)
         // Sanitize the word.
-        .map('word -> 'cleanword) { words: NavigableMap[Long, Utf8] =>
+        .map('word -> 'cleanword) { words: Map[Long, String] =>
           getMostRecent(words)
               .toString()
               .toLowerCase()
@@ -318,7 +318,7 @@ object KijiSourceSuite extends KijiSuite {
   class TwoColumnJob(args: Args) extends Job(args) {
     // Setup input to bind values from the "family:column1" column to the symbol 'word.
     KijiInput(args("input"))("family:column1" -> 'word1, "family:column2" -> 'word2)
-        .map('word1 -> 'pluralword) { words: NavigableMap[Long, Utf8] =>
+        .map('word1 -> 'pluralword) { words: Map[Long, String] =>
           getMostRecent(words).toString() + "s"
         }
         .write(Tsv(args("output")))
@@ -337,7 +337,7 @@ object KijiSourceSuite extends KijiSuite {
   class VersionsJob(source: KijiSource)(args: Args) extends Job(args) {
     source
         // Count the size of words (number of versions).
-        .map('words -> 'versioncount) { words: NavigableMap[Long, Utf8] =>
+        .map('words -> 'versioncount) { words: Map[Long, String] =>
           words.size
         }
         .groupBy('versioncount) (_.size)
