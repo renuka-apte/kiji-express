@@ -119,14 +119,17 @@ class KijiScheme(
   override def sourcePrepare(
       process: FlowProcess[JobConf],
       sourceCall: SourceCall[KijiSourceContext, RecordReader[KijiKey, KijiValue]]) {
-    val conf: JobConf = process.getConfigCopy
-    val tableUri:KijiURI = KijiURI.newBuilder(conf.get(KijiConfKeys.KIJI_INPUT_TABLE_URI)).build()
-    doAndRelease(Kiji.Factory.open(tableUri)) { kiji: Kiji =>
-      doAndRelease(kiji.openTable(tableUri.getTable())) { table: KijiTable =>
-      // Set the sink context to the table layout.
-        sourceCall.setContext(KijiSourceContext(sourceCall.getInput().createValue(), table.getLayout))
+    val tableUriProperty = process.getStringProperty(KijiConfKeys.KIJI_INPUT_TABLE_URI)
+    if (null != tableUriProperty) {
+      val tableUri:KijiURI = KijiURI.newBuilder(tableUriProperty).build()
+      doAndRelease(Kiji.Factory.open(tableUri)) { kiji: Kiji =>
+        doAndRelease(kiji.openTable(tableUri.getTable())) { table: KijiTable =>
+        // Set the sink context to the table layout.
+          sourceCall.setContext(KijiSourceContext(sourceCall.getInput().createValue(), table.getLayout))
+        }
       }
-    }
+    } else
+      sourceCall.setContext(KijiSourceContext(sourceCall.getInput.createValue(), null))
   }
 
   /**
@@ -400,8 +403,8 @@ object KijiScheme {
               entityId,
               family,
               qualifier,
-              convertScalaTypesToKijiValues(output.getObject(
-                fieldName.toString()).asInstanceOf[Map[Long, T]], layout, kijiCol))
+              convertScalaTypes(output.getObject(
+                fieldName.toString()), layout, kijiCol))
         }
       }
     }
