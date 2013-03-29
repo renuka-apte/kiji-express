@@ -387,7 +387,7 @@ object KijiScheme {
               {
                 val familyMap =
                   output.getObject(fieldName.toString()).asInstanceOf[Map[String, Map[Long, T]]]
-                val resMap: util.NavigableMap[String, util.NavigableMap[java.lang.Long, Any]] =
+                val resMap: util.NavigableMap[String, util.NavigableMap[java.lang.Long, java.lang.Object]] =
                   new java.util.TreeMap(familyMap.map(kv =>(
                     new java.lang.String(kv._1),
                     convertScalaTypesToKijiValues(kv._2, layout, kijiCol)
@@ -407,27 +407,27 @@ object KijiScheme {
     }
   }
 
-  private[chopsticks] def convertScalaTypesToKijiValues[T](map:Map[Long, T], layout: KijiTableLayout, columnName: KijiColumnName)
-    :java.util.NavigableMap[java.lang.Long, Any] = {
+  def convertScalaTypesToKijiValues[T](map:Map[Long, T], layout: KijiTableLayout, columnName: KijiColumnName)
+    :java.util.NavigableMap[java.lang.Long, java.lang.Object] = {
     new java.util.TreeMap(map.map(kv => (java.lang.Long.valueOf(kv._1), convertScalaTypes(kv._2, layout, columnName))).asJava)
   }
 
-  private def convertScalaTypes[T](columnValue: T, layout: KijiTableLayout, columnName: KijiColumnName): Any = {
+  private def convertScalaTypes[T](columnValue: T, layout: KijiTableLayout, columnName: KijiColumnName): java.lang.Object = {
     if (null == columnValue) null
     else
       columnValue match {
-        case i: Int => i
-        case b: Boolean => b
-        case l: Long => l
-        case f: Float => f
-        case d: Double => d
+        case i: Int => i.asInstanceOf[java.lang.Integer]
+        case b: Boolean => b.asInstanceOf[java.lang.Boolean]
+        case l: Long => l.asInstanceOf[java.lang.Long]
+        case f: Float => f.asInstanceOf[java.lang.Float]
+        case d: Double => d.asInstanceOf[java.lang.Double]
         // bytes or fixed
         case bb: Array[Byte] => {
           // this case will have an inline schema with its description
           val schemaDesc = layout.getCellSchema(columnName).getValue()
           if (schemaDesc == "\"bytes\"")
             java.nio.ByteBuffer.wrap(bb)
-          else if (schemaDesc == "\"fixed\"")
+          else if (schemaDesc.contains("\"fixed\""))
             new Fixed(new Schema.Parser().parse(schemaDesc), bb)
           else
             throw new InvalidLayoutException("Invalid schema for column")
@@ -438,7 +438,7 @@ object KijiScheme {
         // we don't pass column name down while converting individual elements to avoid confusion
         case l: List[Any] => (l.map(elem => convertScalaTypes(elem, layout, null))).asJava
         // map
-        case m: Map[Any, Any] => new java.util.TreeMap(
+        case m: Map[Any, Any] => new java.util.TreeMap[Any, Any](
           // we don't pass column name down while converting individual elements to avoid confusion
           m.map(kv => (convertScalaTypes(kv._1, layout, null), convertScalaTypes(kv._2, layout, null))).asJava)
         // enum

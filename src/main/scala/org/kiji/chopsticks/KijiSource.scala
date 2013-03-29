@@ -284,7 +284,7 @@ object KijiSource {
 
     override def sinkCleanup(
         process: FlowProcess[Properties],
-        sinkCall: SinkCall[KijiTableWriter, OutputStream]) {
+        sinkCall: SinkCall[OutputContext, OutputStream]) {
       super.sink(process, sinkCall)
 
       // Read table into buffer.

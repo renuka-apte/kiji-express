@@ -49,6 +49,7 @@ import org.kiji.schema.KijiTable
 import org.kiji.schema.KijiTableReader
 import org.kiji.schema.KijiTableWriter
 import org.kiji.schema.KijiURI
+import org.kiji.schema.layout.KijiTableLayout
 
 /**
  * Encapsulates the state required to read from a Kiji table.
@@ -60,7 +61,12 @@ import org.kiji.schema.KijiURI
 private[chopsticks] case class InputContext(
     reader: KijiTableReader,
     scanner: KijiRowScanner,
-    iterator: Iterator[KijiRowData])
+    iterator: Iterator[KijiRowData],
+    layout: KijiTableLayout)
+
+private[chopsticks] case class OutputContext(
+  writer: KijiTableWriter,
+  layout: KijiTableLayout)
 
 /**
  * A scheme that can source and sink data from a Kiji table.
@@ -82,7 +88,7 @@ private[chopsticks] case class InputContext(
 class LocalKijiScheme(
     private val timeRange: TimeRange,
     private val columns: Map[String, ColumnRequest])
-    extends Scheme[Properties, InputStream, OutputStream, InputContext, KijiTableWriter] {
+    extends Scheme[Properties, InputStream, OutputStream, InputContext, OutputContext] {
 
   /** Fields expected to be in any tuples processed by this scheme. */
   private val fields: Fields = {
@@ -129,7 +135,8 @@ class LocalKijiScheme(
         val request = KijiScheme.buildRequest(timeRange, columns.values)
         val reader = table.openTableReader()
         val scanner = reader.getScanner(request)
-        val context = InputContext(reader, scanner, scanner.iterator.asScala)
+        val layout = table.getLayout
+        val context = InputContext(reader, scanner, scanner.iterator.asScala, layout)
 
         sourceCall.setContext(context)
       }
@@ -201,7 +208,7 @@ class LocalKijiScheme(
    */
   override def sinkPrepare(
       process: FlowProcess[Properties],
-      sinkCall: SinkCall[KijiTableWriter, OutputStream]) {
+      sinkCall: SinkCall[OutputContext, OutputStream]) {
     // Open a table writer.
     val uriString: String = process.getConfigCopy().getProperty(KijiConfKeys.KIJI_OUTPUT_TABLE_URI)
     val uri: KijiURI = KijiURI.newBuilder(uriString).build()
@@ -211,7 +218,7 @@ class LocalKijiScheme(
     doAndRelease(Kiji.Factory.open(uri)) { kiji: Kiji =>
       doAndRelease(kiji.openTable(uri.getTable())) { table: KijiTable =>
         // Set the sink context to an opened KijiTableWriter.
-        sinkCall.setContext(table.openTableWriter())
+        sinkCall.setContext(OutputContext(table.openTableWriter(), table.getLayout))
       }
     }
   }
@@ -224,13 +231,13 @@ class LocalKijiScheme(
    */
   override def sink(
       process: FlowProcess[Properties],
-      sinkCall: SinkCall[KijiTableWriter, OutputStream]) {
+      sinkCall: SinkCall[OutputContext, OutputStream]) {
     // Retrieve writer from the scheme's context.
-    val writer: KijiTableWriter = sinkCall.getContext()
+    val OutputContext(writer, layout) = sinkCall.getContext()
 
     // Write the tuple out.
     val output: TupleEntry = sinkCall.getOutgoingEntry()
-    KijiScheme.putTuple(columns, getSinkFields(), output, writer)
+    KijiScheme.putTuple(columns, getSinkFields(), output, writer, layout)
   }
 
   /**
@@ -241,8 +248,8 @@ class LocalKijiScheme(
    */
   override def sinkCleanup(
       process: FlowProcess[Properties],
-      sinkCall: SinkCall[KijiTableWriter, OutputStream]) {
-    sinkCall.getContext().close()
+      sinkCall: SinkCall[OutputContext, OutputStream]) {
+    sinkCall.getContext().writer.close()
     sinkCall.setContext(null)
   }
 

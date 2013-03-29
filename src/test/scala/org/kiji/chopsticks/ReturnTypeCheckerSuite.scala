@@ -19,7 +19,7 @@
 
 package org.kiji.chopsticks
 
-import java.{lang, util}
+import java.{util, lang}
 
 import org.scalatest.FunSuite
 import runtime.ScalaRunTime
@@ -27,6 +27,8 @@ import org.kiji.schema.avro.{HashSpec, MD5Hash, RowKeyEncoding}
 import org.kiji.schema.filter.RegexQualifierColumnFilter
 import org.kiji.chopsticks.ColumnRequest.InputOptions
 import java.io.InvalidClassException
+import org.kiji.schema.layout.{KijiTableLayout, KijiTableLayouts}
+import org.kiji.schema.KijiColumnName
 
 class ReturnTypeCheckerSuite extends FunSuite {
   val intHashMap = new util.TreeMap[java.lang.Long, java.lang.Integer](){
@@ -124,6 +126,7 @@ class ReturnTypeCheckerSuite extends FunSuite {
 
     // convert back
     val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
     assert(resJava == intHashMap)
   }
 
@@ -133,6 +136,10 @@ class ReturnTypeCheckerSuite extends FunSuite {
     res.foreach(kv => assert(kv._2.isInstanceOf[Boolean]))
     assert(true == res(10L))
     assert(false == res(20L))
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == boolHashMap)
   }
 
   test("Test Return Type Long") {
@@ -140,6 +147,10 @@ class ReturnTypeCheckerSuite extends FunSuite {
     assert(1 == res.size)
     res.foreach(kv => assert(kv._2.isInstanceOf[Long]))
     assert(10L == res(10L))
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == longHashMap)
   }
 
   test("Test Return Type Float") {
@@ -147,6 +158,10 @@ class ReturnTypeCheckerSuite extends FunSuite {
     assert(1 == res.size)
     res.foreach(kv => assert(kv._2.isInstanceOf[Float]))
     assert(10F == res(10L))
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == floatHashMap)
   }
 
   test("Test Return Type Double") {
@@ -156,6 +171,10 @@ class ReturnTypeCheckerSuite extends FunSuite {
     assert(10D == res(10L))
     assert(20D == res(20L))
     assert(25D == res(30L))
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == doubleHashMap)
   }
 
   test("Test Return Type Bytes") {
@@ -164,6 +183,14 @@ class ReturnTypeCheckerSuite extends FunSuite {
     res.foreach(kv => assert(kv._2.isInstanceOf[Array[Byte]]))
     val expected: Array[Byte] = Array(17, 18)
     assert(expected.deep == res(10L).asInstanceOf[Array[Byte]].deep)
+
+    // convert back
+    val tableLayout = KijiTableLayout.newLayout(KijiTableLayouts.getLayout("avro-types.json"))
+    val columnName = new KijiColumnName("family", "column2")
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, tableLayout, columnName)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == bytesHashMap)
+
   }
 
   test("Test Return Type CharSequence") {
@@ -172,6 +199,11 @@ class ReturnTypeCheckerSuite extends FunSuite {
     res.foreach(kv => assert(kv._2.isInstanceOf[String]))
     assert("test" == res(10L))
     assert("string" == res(20L))
+
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == charSequenceHashMap)
   }
 
   test("Test Return Type List") {
@@ -182,6 +214,10 @@ class ReturnTypeCheckerSuite extends FunSuite {
     val expect2: List[Int] = List(3, 4)
     assert(expect1 == res(10L))
     assert(expect2 == res(20L))
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == listHashMap)
   }
 
   test("Test Return Type Map") {
@@ -192,12 +228,20 @@ class ReturnTypeCheckerSuite extends FunSuite {
     val expect2: Map[Int, String] = Map(3->"t3", 4-> "t4")
     assert(expect1 == res(10L))
     assert(expect2 == res(20L))
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == mapHashMap)
   }
 
   test("Test Return Type Null") {
     val res = KijiScheme.convertKijiValuesToScalaTypes(voidHashMap)
     assert(1 == res.size)
     res.foreach(kv => assert(null == kv._2))
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == voidHashMap)
   }
 
   test("Test Return Type Union") {
@@ -206,6 +250,11 @@ class ReturnTypeCheckerSuite extends FunSuite {
     res.foreach(kv => assert(kv._2.isInstanceOf[java.lang.Object]))
     assert(10 == res(10L))
     assert("test" == res(20L))
+
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == unionHashMap)
   }
 
   test("Test Return Type Enum") {
@@ -214,6 +263,11 @@ class ReturnTypeCheckerSuite extends FunSuite {
     res.foreach(kv => assert(kv._2.isInstanceOf[RowKeyEncoding]))
     assert(RowKeyEncoding.FORMATTED == res(10L))
     assert(RowKeyEncoding.HASH_PREFIX == res(20L))
+
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == enumHashMap)
   }
 
   test("Test Return Type Fixed") {
@@ -222,6 +276,13 @@ class ReturnTypeCheckerSuite extends FunSuite {
     res.foreach(kv => assert(kv._2.isInstanceOf[Array[Byte]]))
     assert(Array[Byte](01, 02).deep == res(10L).asInstanceOf[Array[Byte]].deep)
     assert(Array[Byte](03, 04).deep == res(20L).asInstanceOf[Array[Byte]].deep)
+
+    // convert back
+    val tableLayout = KijiTableLayout.newLayout(KijiTableLayouts.getLayout("avro-types.json"))
+    val columnName = new KijiColumnName("family", "column1")
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, tableLayout, columnName)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == fixedHashMap)
   }
 
   test("Test Return Type Avro Record") {
@@ -232,6 +293,11 @@ class ReturnTypeCheckerSuite extends FunSuite {
     val expect2 = HashSpec.newBuilder().build()
     assert(expect1 == res(10L).asInstanceOf[HashSpec])
     assert(expect2 == res(20L).asInstanceOf[HashSpec])
+
+    // convert back
+    val resJava = KijiScheme.convertScalaTypesToKijiValues(res, null, null)
+    assert(resJava.isInstanceOf[util.NavigableMap[lang.Long, java.lang.Object]])
+    assert(resJava == recordHashMap)
   }
 
   test("Test Bad Return Type") {
