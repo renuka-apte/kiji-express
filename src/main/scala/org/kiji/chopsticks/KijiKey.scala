@@ -21,7 +21,7 @@ package org.kiji.chopsticks
 
 import org.kiji.annotations.ApiAudience
 import org.kiji.annotations.ApiStability
-import org.kiji.schema.EntityId
+import org.kiji.schema.{EntityId => JEntityId}
 
 /**
  * A reusable container for Kiji entity ids.
@@ -37,20 +37,20 @@ import org.kiji.schema.EntityId
 final class KijiKey {
   /** The entity id contained by this instance. */
   // scalastyle:off null
-  private var currentKey: EntityId = null
+  private var currentKey: JEntityId = null
   // scalastyle:on null
 
   /**
    * @return the entity id contained in this instance.
    */
-  def get(): EntityId = currentKey
+  def get(): JEntityId = currentKey
 
   /**
    * Sets the entity id contained in this instance.
    *
    * @param key that this container will hold.
    */
-  def set(key: EntityId) {
+  def set(key: JEntityId) {
     currentKey = key
   }
 }

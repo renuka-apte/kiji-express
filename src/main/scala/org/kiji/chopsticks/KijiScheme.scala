@@ -23,6 +23,7 @@ import java.io.InvalidClassException
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
+import scala.Some
 
 import cascading.flow.FlowProcess
 import cascading.scheme.Scheme
@@ -49,7 +50,6 @@ import org.kiji.annotations.ApiAudience
 import org.kiji.annotations.ApiStability
 import org.kiji.chopsticks.Resources.doAndRelease
 import org.kiji.mapreduce.framework.KijiConfKeys
-import org.kiji.schema.EntityId
 import org.kiji.schema.Kiji
 import org.kiji.schema.KijiColumnName
 import org.kiji.schema.KijiDataRequest
@@ -58,6 +58,7 @@ import org.kiji.schema.KijiRowData
 import org.kiji.schema.KijiTable
 import org.kiji.schema.KijiTableWriter
 import org.kiji.schema.KijiURI
+import org.kiji.schema.EntityIdFactory
 import org.kiji.schema.layout.KijiTableLayout
 
 /**
@@ -176,7 +177,7 @@ private[chopsticks] class KijiScheme(
     while (sourceCall.getInput().next(null, value)) {
     // scalastyle:on null
       val row: KijiRowData = value.get()
-      val result: Option[Tuple] = rowToTuple(columns, getSourceFields, timestampField, row)
+      val result: Option[Tuple] = rowToTuple(columns, getSourceFields, timestampField, row, layout)
 
       // If no fields were missing, set the result tuple and return from this method.
       result match {
@@ -348,12 +349,13 @@ private[chopsticks] object KijiScheme {
       columns: Map[String, ColumnRequest],
       fields: Fields,
       timestampField: Option[Symbol],
-      row: KijiRowData): Option[Tuple] = {
+      row: KijiRowData,
+      layout: KijiTableLayout): Option[Tuple] = {
     val result: Tuple = new Tuple()
     val iterator = fields.iterator().asScala
 
     // Add the row's EntityId to the tuple.
-    result.add(row.getEntityId())
+    result.add(EntityId(row.getEntityId(), EntityIdFactory.getFactory(layout)))
 
     // Get rid of the entity id and timestamp fields, then map over each field to add a column
     // to the tuple.
@@ -477,18 +479,21 @@ private[chopsticks] object KijiScheme {
 
     // Get the entityId.
     val entityId: EntityId = output.getObject(entityIdField).asInstanceOf[EntityId]
-    iterator.next()
+    // Get the Kiji EntityIdFactory for this table
+    val entityIdFactory = EntityIdFactory.getFactory(layout)
 
     // Get a timestamp to write the values to, if it was specified by the user.
     val timestamp: Long = timestampField match {
       case Some(field) => {
-        iterator.next()
         output.getObject(field.name).asInstanceOf[Long]
       }
       case None => System.currentTimeMillis()
     }
 
-    iterator.foreach { fieldName =>
+    iterator
+      .filter { field => field.toString != entityIdField  }
+      .filter { field => field.toString != timestampField.getOrElse(Symbol("")).name }
+      .foreach { fieldName =>
       columns(fieldName.toString()) match {
         case ColumnFamily(family, _) => {
           // TODO CHOP-67 Design putTuple semantics for map type column families
@@ -498,7 +503,7 @@ private[chopsticks] object KijiScheme {
         case QualifiedColumn(family, qualifier, _) => {
           val kijiCol = new KijiColumnName(family, qualifier)
           writer.put(
-              entityId,
+              entityId.getEntityId(entityIdFactory),
               family,
               qualifier,
               timestamp,
@@ -555,7 +560,7 @@ private[chopsticks] object KijiScheme {
         require(null != columnSchema, "In order to convert a Map[String, Any], you must provide a "
           + "writer schema.")
         val convertedMap = m.map { case (key, value) =>
-          val convertedValue = convertScalaTypes(value, columnSchema.getValueType)
+          val convertedValue = convertScalaTypes(value, columnSchema)
           (key, convertedValue)
         }
         new java.util.TreeMap[java.lang.Object, java.lang.Object](convertedMap.asJava)

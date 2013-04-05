@@ -51,15 +51,14 @@ import org.kiji.annotations.ApiAudience
 import org.kiji.annotations.ApiStability
 import org.kiji.chopsticks.Resources._
 import org.kiji.mapreduce.framework.KijiConfKeys
-import org.kiji.schema.EntityId
-import org.kiji.schema.Kiji
-import org.kiji.schema.KijiDataRequest
-import org.kiji.schema.KijiRowData
-import org.kiji.schema.KijiRowScanner
-import org.kiji.schema.KijiTable
-import org.kiji.schema.KijiTableReader
-import org.kiji.schema.KijiTableWriter
-import org.kiji.schema.KijiURI
+import org.kiji.schema.{EntityId => JEntityId, _}
+import org.kiji.chopsticks.OutputContext
+import com.twitter.scalding.Test
+import com.twitter.scalding.HadoopTest
+import com.twitter.scalding.Hdfs
+import org.kiji.chopsticks.InputContext
+import com.twitter.scalding.Local
+import org.kiji.chopsticks.KijiSinkContext
 
 /**
  * A read or write view of a Kiji table.
@@ -132,12 +131,14 @@ final class KijiSource private[chopsticks] (
    */
   private def populateTestTable(rows: Buffer[Tuple], fields: Fields) {
     // Open a table writer.
-    val writer =
+    val (writer, layout) =
         doAndRelease(Kiji.Factory.open(tableUri)) { kiji =>
           doAndRelease(kiji.openTable(tableUri.getTable())) { table =>
-            table.openTableWriter()
+            (table.openTableWriter(), table.getLayout)
           }
         }
+
+    val eidFactory = EntityIdFactory.getFactory(layout)
 
     // Write the desired rows to the table.
     try {
@@ -163,7 +164,7 @@ final class KijiSource private[chopsticks] (
               cells.map { cell: Cell[Any] =>
                 // scalastyle:off null
                 writer.put(
-                    entityId,
+                    entityId.getEntityId(eidFactory),
                     cell.family,
                     cell.qualifier,
                     cell.version,
@@ -354,7 +355,7 @@ object KijiSource {
 
               rows.foreach { row: KijiRowData =>
                 KijiScheme
-                    .rowToTuple(columns, getSinkFields(), timestampField, row)
+                    .rowToTuple(columns, getSinkFields(), timestampField, row, table.getLayout)
                     .foreach { tuple => buffer += tuple }
               }
             }
