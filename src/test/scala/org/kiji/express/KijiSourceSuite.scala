@@ -26,7 +26,7 @@ import com.twitter.scalding._
 
 import org.kiji.express.DSL._
 import org.kiji.express.Resources.doAndRelease
-import org.kiji.schema.EntityId
+import org.kiji.schema.{EntityId => JEntityId}
 import org.kiji.schema.KijiTable
 import org.kiji.schema.layout.KijiTableLayout
 import org.kiji.schema.layout.KijiTableLayouts
@@ -40,10 +40,10 @@ class KijiSourceSuite
 
   /** Input tuples to use for word count tests. */
   val wordCountInput: List[(EntityId, KijiSlice[String])] = List(
-      ( id("row01"), slice("family:column1", (1L, "hello")) ),
-      ( id("row02"), slice("family:column1", (2L, "hello")) ),
-      ( id("row03"), slice("family:column1", (1L, "world")) ),
-      ( id("row04"), slice("family:column1", (3L, "hello")) ))
+      ( EntityId("row01"), slice("family:column1", (1L, "hello")) ),
+      ( EntityId("row02"), slice("family:column1", (2L, "hello")) ),
+      ( EntityId("row03"), slice("family:column1", (1L, "world")) ),
+      ( EntityId("row04"), slice("family:column1", (3L, "hello")) ))
 
   /**
    * Validates output from [[com.twitter.scalding.examples.WordCountJob]].
@@ -162,7 +162,7 @@ class KijiSourceSuite
    *
    * @param outputBuffer containing data that the Kiji table has in it after the job has been run.
    */
-  def validateImport(outputBuffer: Buffer[(EntityId, KijiSlice[String])]) {
+  def validateImport(outputBuffer: Buffer[(JEntityId, KijiSlice[String])]) {
     assert(10 === outputBuffer.size)
 
     // Perform a non-distributed word count.
@@ -232,7 +232,7 @@ class KijiSourceSuite
    *
    * @param outputBuffer containing data that the Kiji table has in it after the job has been run.
    */
-  def validateImportWithTime(outputBuffer: Buffer[(EntityId, KijiSlice[String])]) {
+  def validateImportWithTime(outputBuffer: Buffer[(JEntityId, KijiSlice[String])]) {
     // There should be one cell per row in the output.
     val cellsPerRow = outputBuffer.unzip._2.map { m => (m.getFirst().version, m.getFirst().datum) }
     // Sort by timestamp.
@@ -280,12 +280,12 @@ class KijiSourceSuite
 
   // Input tuples to use for version count tests.
   val versionCountInput: List[(EntityId, KijiSlice[String])] = List(
-    ( id("row01"), slice("family:column1", (10L, "two"), (20L, "two")) ),
-    ( id("row02"), slice("family:column1",
+    ( EntityId("row01"), slice("family:column1", (10L, "two"), (20L, "two")) ),
+    ( EntityId("row02"), slice("family:column1",
       (10L, "three"),
       (20L, "three"),
       (30L, "three") ) ),
-    ( id("row03"), slice("family:column1", (10L, "hello")) ))
+    ( EntityId("row03"), slice("family:column1", (10L, "hello")) ))
 
   test("a job that requests maxVersions gets them") {
     // Create test Kiji table.
@@ -319,7 +319,6 @@ class KijiSourceSuite
       table.getURI().toString()
     }
 
-
     def validateVersionCount(outputBuffer: Buffer[(Int, Int)]) {
       val outMap = outputBuffer.toMap
       // There should be two rows with 2 returned versions
@@ -340,12 +339,12 @@ class KijiSourceSuite
   }
   val missingValuesInput: List[(EntityId, KijiSlice[String], KijiSlice[String])]
   = List(
-    (id("row01"), slice("family:column1", (10L, "hello")),
+    (EntityId("row01"), slice("family:column1", (10L, "hello")),
       slice("family:column2", (10L, "hello")) ),
-    (id("row02"), slice("family:column1", (10L, "hello")), missing() ),
-    (id("row03"), slice("family:column1", (10L, "world")),
+    (EntityId("row02"), slice("family:column1", (10L, "hello")), missing() ),
+    (EntityId("row03"), slice("family:column1", (10L, "world")),
       slice("family:column2", (10L, "world")) ),
-    (id("row04"), slice("family:column1", (10L, "hello")),
+    (EntityId("row04"), slice("family:column1", (10L, "hello")),
       slice("family:column2", (10L, "hello"))))
 
   test("Default for missing values is skipping the row.") {
@@ -378,9 +377,11 @@ class KijiSourceSuite
     }
     def validateMissingValuesReplaced(outputBuffer: Buffer[(String, String)]) {
       assert(4 === outputBuffer.size)
-      assert(outputBuffer(0)._2 == "hellos")
-      assert(outputBuffer(1)._2 == "missings")
+      val values = outputBuffer.toMap.values.toList
+      assert(values.contains("hellos"))
+      assert(values.contains("missings"))
     }
+
     // Build test job.
     JobTest(new PluralizeReplaceJob(_))
       .arg("input", uri)
@@ -424,12 +425,12 @@ class KijiSourceSuite
     }
     // Input tuples to use for version count tests.
     val avroCheckerInput: List[(EntityId, KijiSlice[String])] = List(
-        ( id("row01"), slice("family:column1", (10L,"two"), (20L, "two")) ),
-        ( id("row02"), slice("family:column1",
+        ( EntityId("row01"), slice("family:column1", (10L,"two"), (20L, "two")) ),
+        ( EntityId("row02"), slice("family:column1",
             (10L, "three"),
             (20L, "three"),
             (30L, "three") ) ),
-        ( id("row03"), slice("family:column1", (10L, "hello")) ))
+        ( EntityId("row03"), slice("family:column1", (10L, "hello")) ))
     // Build test job.
     val testSource = KijiInput(uri)(Map((Column("family:column1", versions=all) -> 'word)))
     JobTest(new AvroToScalaChecker(testSource)(_))
@@ -561,7 +562,7 @@ object KijiSourceSuite extends KijiSuite {
         // Get the words in each line.
         .flatMap('line -> 'word) { line : String => line.split("\\s+") }
         // Generate an entityId for each word.
-        .map('word -> 'entityId) { _: String => id(UUID.randomUUID().toString()) }
+        .map('word -> 'entityId) { _: String => EntityId(UUID.randomUUID().toString()) }
         // Write the results to the "family:column1" column of a Kiji table.
         .write(KijiOutput(args("output"))('word -> "family:column1"))
   }
@@ -579,7 +580,7 @@ object KijiSourceSuite extends KijiSuite {
     TextLine(args("input"))
     .read
     // Generate an entityId for each line.
-    .map('line -> 'entityId) { id(_: String) }
+    .map('line -> 'entityId) { EntityId(_: String) }
     // Write the results to the "family:column1" column of a Kiji table.
     .write(KijiOutput(args("output"), 'offset)('line -> "family:column1"))
   }

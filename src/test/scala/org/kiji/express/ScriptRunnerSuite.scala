@@ -28,7 +28,7 @@ import com.twitter.scalding._
 
 import org.kiji.express.DSL._
 import org.kiji.express.Resources.doAndRelease
-import org.kiji.schema.EntityId
+import org.kiji.schema.{EntityId => JEntityId}
 import org.kiji.schema.KijiTable
 import org.kiji.schema.layout.KijiTableLayout
 import org.kiji.schema.layout.KijiTableLayouts
@@ -39,10 +39,10 @@ class ScriptRunnerSuite extends KijiSuite {
 
   /** Input tuples to use for word count tests. */
   val wordCountInput: List[(EntityId, KijiSlice[String])] = List(
-      ( id("row01"), slice("family:column1", (10L, "hello")) ),
-      ( id("row02"), slice("family:column1", (10L, "hello")) ),
-      ( id("row03"), slice("family:column1", (10L, "world")) ),
-      ( id("row04"), slice("family:column1", (10L, "hello")) ))
+      ( EntityId("row01"), slice("family:column1", (10L, "hello")) ),
+      ( EntityId("row02"), slice("family:column1", (10L, "hello")) ),
+      ( EntityId("row03"), slice("family:column1", (10L, "world")) ),
+      ( EntityId("row04"), slice("family:column1", (10L, "hello")) ))
 
   /**
    * Validates output from [[com.twitter.scalding.examples.WordCountJob]].
