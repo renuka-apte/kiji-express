@@ -20,8 +20,6 @@
 package org.kiji.chopsticks
 
 import java.io.File
-import java.util.NavigableMap
-import java.util.UUID
 
 import scala.collection.mutable.Buffer
 
@@ -43,11 +41,11 @@ class ScriptRunnerSuite extends KijiSuite {
   val layout: KijiTableLayout = layout(KijiTableLayouts.SIMPLE_TWO_COLUMNS)
 
   /** Input tuples to use for word count tests. */
-  val wordCountInput: List[(EntityId, NavigableMap[Long, Utf8])] = List(
-      ( id("row01"), singleton(new Utf8("hello")) ),
-      ( id("row02"), singleton(new Utf8("hello")) ),
-      ( id("row03"), singleton(new Utf8("world")) ),
-      ( id("row04"), singleton(new Utf8("hello")) ))
+  val wordCountInput: List[(EntityId, KijiSlice[Utf8])] = List(
+      ( id("row01"), slice("family:column1", (10L, new Utf8("hello"))) ),
+      ( id("row02"), slice("family:column1", (10L, new Utf8("hello"))) ),
+      ( id("row03"), slice("family:column1", (10L, new Utf8("world"))) ),
+      ( id("row04"), slice("family:column1", (10L, new Utf8("hello"))) ))
 
   /**
    * Validates output from [[com.twitter.scalding.examples.WordCountJob]].
@@ -64,20 +62,20 @@ class ScriptRunnerSuite extends KijiSuite {
 
   /** Test script to run. */
   val scriptString: String =
-"""
+    """
 import java.util.NavigableMap
 
 import com.twitter.scalding._
 import org.apache.avro.util.Utf8
 
 import org.kiji.chopsticks.DSL._
+import org.kiji.chopsticks.KijiSlice
 
 KijiInput("%s")("family:column1" -> 'word)
     // Sanitize the word.
-    .map('word -> 'cleanword) { words: Map[Long, String] =>
+    .map('word -> 'cleanword) { words: KijiSlice[Utf8] =>
       words
-          .head
-          ._2
+          .getFirstValue()
           .toString()
           .toLowerCase()
     }
@@ -85,7 +83,7 @@ KijiInput("%s")("family:column1" -> 'word)
     .groupBy('cleanword) { occurences => occurences.size }
     // Write the result to a file.
     .write(Tsv("outputFile"))
-"""
+    """
 
   test("An script can be compiled and run as a local job.") {
     // Create test Kiji table.

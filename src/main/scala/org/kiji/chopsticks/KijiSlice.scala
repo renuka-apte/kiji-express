@@ -44,6 +44,14 @@ class KijiSlice[T] private[chopsticks] (val cells: Seq[Cell[T]]) {
    * @return the first cell in the collection, as determined by the sorted order.
    */
   def getFirst(): Cell[T] = cells(0)
+
+  /**
+   * Gets the value of the first cell, as decided by the ordering of the slice.
+   *
+   * @return the first value in the collection, as determined by sorted order.
+   */
+  def getFirstValue(): T = cells(0).datum
+
   /**
    * Gets the last cell, as decided by the ordering of the slice.
    *

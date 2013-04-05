@@ -40,6 +40,7 @@ case class Cell[T] private[chopsticks] (family: String, qualifier: String, versi
 * Currently, this companion object is only a factory for creating cells.
 */
 object Cell {
+  import KijiScheme.convertJavaTypes
   /**
    * Creates a new Cell using the contents of the specified [[org.kiji.schema.KijiCell]].
    *
@@ -48,6 +49,9 @@ object Cell {
    * @return A Cell with the same family, qualifier, timestamp, and datum as the passed in KijiCell.
    */
   private[chopsticks] def apply[T](cell: KijiCell[T]): Cell[T] = {
-    new Cell[T](cell.getFamily, cell.getQualifier, cell.getTimestamp, cell.getData)
+    new Cell[T](convertJavaTypes(cell.getFamily).asInstanceOf[String],
+        convertJavaTypes(cell.getQualifier).asInstanceOf[String],
+        convertJavaTypes(cell.getTimestamp).asInstanceOf[Long],
+        convertJavaTypes(cell.getData).asInstanceOf[T])
   }
 }
