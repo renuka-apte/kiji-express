@@ -290,18 +290,17 @@ class KijiSourceSuite
         .run
         .finish
   }
+  val missingValuesInput: List[(EntityId, KijiSlice[Utf8], KijiSlice[Utf8])]
+  = List(
+    (id("row01"), slice("family:column1", (10L, new Utf8("hello"))),
+      slice("family:column2", (10L, new Utf8("hello"))) ),
+    (id("row02"), slice("family:column1", (10L, new Utf8("hello"))), missing() ),
+    (id("row03"), slice("family:column1", (10L, new Utf8("world"))),
+      slice("family:column2", (10L, new Utf8("world"))) ),
+    (id("row04"), slice("family:column1", (10L, new Utf8("hello"))),
+      slice("family:column2", (10L, new Utf8("hello")))))
 
-  test("default for missing values is skipping the row") {
-    val missingValuesInput: List[(EntityId, KijiSlice[Utf8], KijiSlice[Utf8])]
-        = List(
-          (id("row01"), slice("family:column1", (10L, new Utf8("hello"))),
-              slice("family:column2", (10L, new Utf8("hello"))) ),
-          (id("row02"), slice("family:column1", (10L, new Utf8("hello"))), missing() ),
-          (id("row03"), slice("family:column1", (10L, new Utf8("world"))),
-              slice("family:column2", (10L, new Utf8("world"))) ),
-          (id("row04"), slice("family:column1", (10L, new Utf8("hello"))),
-              slice("family:column2", (10L, new Utf8("hello")))))
-
+  test("Default for missing values is skipping the row.") {
     // Create test Kiji table.
     val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
       table.getURI().toString()
@@ -323,6 +322,37 @@ class KijiSourceSuite
         .finish
   }
 
+
+  test("replacing missing values succeeds") {
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+    def validateMissingValuesReplaced(outputBuffer: Buffer[(String, String)]) {
+      assert(4 === outputBuffer.size)
+      assert(outputBuffer(0)._2 == "hellos")
+      assert(outputBuffer(1)._2 == "missings")
+    }
+    // Build test job.
+    JobTest(new TwoColumnJob(_))
+      .arg("input", uri)
+      .arg("output", "outputFile")
+      .source(KijiInput(uri)(
+        Map(
+          Column("family:column1") -> 'word1,
+          Column("family:column2")
+      .replaceMissingWith(
+        slice("family:column2", (0L, "missing"))) -> 'word2)),
+    missingValuesInput)
+      .sink(Tsv("outputFile"))(validateMissingValuesReplaced)
+    // Run the test job.
+      .run
+    // note for reviewer: Running this with .runHadoop fails because Utf8 is not
+    // serializable, and the KijiScheme gets serialized.  Hopefully if we eventually
+    // use String or CharSequence instead, this won't be a problem
+      .finish
+  }
+
   // TODO(CHOP-39): Write this test.
   test("a word-count job that uses the type-safe api is run") {
     pending
@@ -332,6 +362,38 @@ class KijiSourceSuite
   test("a job that uses the matrix api is run") {
     pending
   }
+
+  test("test conversion of column value of type string between java and scala in Hadoop mode") {
+    def validateSimpleAvroChecker(outputBuffer: Buffer[(String, Int)]) {
+      val outMap = outputBuffer.toMap
+      // Validate that the output is as expected.
+      intercept[java.util.NoSuchElementException]{outMap("false")}
+      assert(6 === outMap("true"))
+    }
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+    // Input tuples to use for version count tests.
+    val avroCheckerInput: List[(EntityId, KijiSlice[Utf8])] = List(
+        ( id("row01"), slice("family:column1", (10L, new Utf8("two")), (20L, new Utf8("two"))) ),
+        ( id("row02"), slice("family:column1",
+            (10L, new Utf8("three")),
+            (20L, new Utf8("three")),
+            (30L, new Utf8("three")) ) ),
+        ( id("row03"), slice("family:column1", (10L, new Utf8("hello"))) ))
+    // Build test job.
+    val testSource = KijiInput(uri)(Map((Column("family:column1", versions=all) -> 'word)))
+    JobTest(new AvroToScalaChecker(testSource)(_))
+      .arg("input", uri)
+      .arg("output", "outputFile")
+      .source(testSource, avroCheckerInput)
+      .sink(Tsv("outputFile"))(validateSimpleAvroChecker)
+    // Run the test job.
+      .runHadoop
+      .finish
+  }
+
 }
 
 /** Companion object for KijiSourceSuite. Contains helper functions and test jobs. */
@@ -375,6 +437,30 @@ object KijiSourceSuite extends KijiSuite {
         .map('word1 -> 'pluralword) { words: KijiSlice[Utf8] =>
           words.getFirstValue().toString() + "s"
         }
+        .write(Tsv(args("output")))
+  }
+
+
+ /**
+  * A job that takes the most recent string value from the column "family:column1" and adds
+  * the letter 's' to the end of it. It passes through the column "family:column2" without
+  * any changes, replacing missing values with the string "missing".
+  *
+  * @param args to the job. Two arguments are expected: "input", which should specify the URI
+  *     to the Kiji table the job should be run on, and "output", which specifies the output
+  *     Tsv file.
+  */
+  class PluralizeReplaceJob(args: Args) extends Job(args) {
+    KijiInput(args("input"))(
+        Map(
+            Column("family:column1") -> 'word1,
+            Column("family:column2")
+                .replaceMissingWith(
+                        slice("family:column2", (0L, "missing"))) -> 'word2))
+        .map('word2 -> 'pluralword) { words: KijiSlice[String] =>
+          words.getFirst().datum + "s"
+        }
+        .discard('word1, 'word2)
         .write(Tsv(args("output")))
   }
 
@@ -434,5 +520,21 @@ object KijiSourceSuite extends KijiSuite {
     .map('line -> 'entityId) { id(_: String) }
     // Write the results to the "family:column1" column of a Kiji table.
     .write(KijiOutput(args("output"), 'offset)('line -> "family:column1"))
+  }
+
+  class AvroToScalaChecker(source: KijiSource)(args: Args) extends Job(args) {
+    source
+      .flatMap('word -> 'matches) { word: KijiSlice[Utf8] =>
+      word.cells.map { cell: Cell[Utf8] =>
+        val value = cell.datum
+        if (value.isInstanceOf[Utf8]) {
+          "true"
+        } else {
+          "false"
+        }
+      }
+    }
+      .groupBy('matches) (_.size)
+      .write(Tsv(args("output")))
   }
 }

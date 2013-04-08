@@ -212,7 +212,7 @@ class ReturnTypeCheckerSuite extends FunSuite with ShouldMatchers {
 
   val fixed: org.kiji.schema.avro.MD5Hash =
       new org.kiji.schema.avro.MD5Hash(Array[Byte](03, 04))
-  test("Test conversion of avro fixed type while reading/writing from/to Kiji Table") {
+  test("Test conversion of Avro fixed type from Java, to Scala, and back again.") {
     val res = KijiScheme.convertJavaTypes(fixed)
     assert(res.isInstanceOf[Any])
     assert(Array[Byte](03, 04).deep == res.asInstanceOf[Array[Byte]].deep)
@@ -225,7 +225,7 @@ class ReturnTypeCheckerSuite extends FunSuite with ShouldMatchers {
     assert(resJava == fixed)
   }
   val record: org.kiji.schema.avro.HashSpec = HashSpec.newBuilder().build()
-  test("Test conversion of avro record type while reading/writing from/to Kiji Table") {
+  test("Test conversion of Avro record from Java, to Scala, and back again.") {
     val res = KijiScheme.convertJavaTypes(record)
     assert(res.isInstanceOf[HashSpec])
     val expect2 = HashSpec.newBuilder().build()
@@ -245,8 +245,7 @@ class ReturnTypeCheckerSuite extends FunSuite with ShouldMatchers {
     arr.add(new org.kiji.schema.avro.MD5Hash(Array[Byte](07, 0x08)))
     arr
   }
-  test("Test conversion of Avro list of fixed type elements while reading/writing "
-      + "from/to Kiji Table") {
+  test("Test conversion of Avro list of fixed type from Java, to Scala, and back again.") {
     val res = KijiScheme.convertJavaTypes(nestedList)
     assert(res.isInstanceOf[List[Array[Byte]]])
     assert(Array[Byte](05, 06).deep == res.asInstanceOf[List[Array[Byte]]](0).deep)
@@ -261,7 +260,7 @@ class ReturnTypeCheckerSuite extends FunSuite with ShouldMatchers {
   val filter = new RegexQualifierColumnFilter(".*")
   val maxVersions = 2
   val badRecord: ColumnRequestOptions = new ColumnRequestOptions(maxVersions, Some(filter))
-  test("Test for exception when converting unsupported avro class") {
+  test("Test for exception when converting unsupported an Avro class.") {
     intercept[InvalidClassException] {
       KijiScheme.convertJavaTypes(badRecord)
     }
