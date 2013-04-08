@@ -25,11 +25,8 @@ import scala.collection.mutable.Buffer
 
 import com.google.common.io.Files
 import com.twitter.scalding._
-import org.apache.avro.util.Utf8
-import org.apache.hadoop.conf.Configuration
 
 import org.kiji.chopsticks.DSL._
-import org.kiji.chopsticks.Resources.doAndClose
 import org.kiji.chopsticks.Resources.doAndRelease
 import org.kiji.schema.EntityId
 import org.kiji.schema.KijiTable
@@ -41,11 +38,11 @@ class ScriptRunnerSuite extends KijiSuite {
   val layout: KijiTableLayout = layout(KijiTableLayouts.SIMPLE_TWO_COLUMNS)
 
   /** Input tuples to use for word count tests. */
-  val wordCountInput: List[(EntityId, KijiSlice[Utf8])] = List(
-      ( id("row01"), slice("family:column1", (10L, new Utf8("hello"))) ),
-      ( id("row02"), slice("family:column1", (10L, new Utf8("hello"))) ),
-      ( id("row03"), slice("family:column1", (10L, new Utf8("world"))) ),
-      ( id("row04"), slice("family:column1", (10L, new Utf8("hello"))) ))
+  val wordCountInput: List[(EntityId, KijiSlice[String])] = List(
+      ( id("row01"), slice("family:column1", (10L, "hello")) ),
+      ( id("row02"), slice("family:column1", (10L, "hello")) ),
+      ( id("row03"), slice("family:column1", (10L, "world")) ),
+      ( id("row04"), slice("family:column1", (10L, "hello")) ))
 
   /**
    * Validates output from [[com.twitter.scalding.examples.WordCountJob]].
@@ -73,10 +70,9 @@ import org.kiji.chopsticks.KijiSlice
 
 KijiInput("%s")("family:column1" -> 'word)
     // Sanitize the word.
-    .map('word -> 'cleanword) { words: KijiSlice[Utf8] =>
+    .map('word -> 'cleanword) { words: KijiSlice[String] =>
       words
           .getFirstValue()
-          .toString()
           .toLowerCase()
     }
     // Count the occurrences of each word.

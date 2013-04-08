@@ -23,7 +23,6 @@ import scala.collection.mutable.Buffer
 import java.util.UUID
 
 import com.twitter.scalding._
-import org.apache.avro.util.Utf8
 
 import org.kiji.chopsticks.DSL._
 import org.kiji.chopsticks.Resources.doAndRelease
@@ -40,11 +39,11 @@ class KijiSourceSuite
   val layout: KijiTableLayout = layout(KijiTableLayouts.SIMPLE_TWO_COLUMNS)
 
   /** Input tuples to use for word count tests. */
-  val wordCountInput: List[(EntityId, KijiSlice[Utf8])] = List(
-      ( id("row01"), slice("family:column1", (1L,new Utf8("hello"))) ),
-      ( id("row02"), slice("family:column1", (2L,new Utf8("hello"))) ),
-      ( id("row03"), slice("family:column1", (1L,new Utf8("world"))) ),
-      ( id("row04"), slice("family:column1", (3L,new Utf8("hello"))) ))
+  val wordCountInput: List[(EntityId, KijiSlice[String])] = List(
+      ( id("row01"), slice("family:column1", (1L, "hello")) ),
+      ( id("row02"), slice("family:column1", (2L, "hello")) ),
+      ( id("row03"), slice("family:column1", (1L, "world")) ),
+      ( id("row04"), slice("family:column1", (3L, "hello")) ))
 
   /**
    * Validates output from [[com.twitter.scalding.examples.WordCountJob]].
@@ -103,7 +102,7 @@ class KijiSourceSuite
    *
    * @param outputBuffer containing data that the Kiji table has in it after the job has been run.
    */
-  def validateImport(outputBuffer: Buffer[(EntityId, KijiSlice[Utf8])]) {
+  def validateImport(outputBuffer: Buffer[(EntityId, KijiSlice[String])]) {
     assert(10 === outputBuffer.size)
 
     // Perform a non-distributed word count.
@@ -112,7 +111,7 @@ class KijiSourceSuite
         .flatMap { row =>
           val (_, slice) = row
           slice.cells
-              .map { cell: Cell[Utf8] =>
+              .map { cell: Cell[String] =>
               cell.datum
               }
         }
@@ -173,14 +172,14 @@ class KijiSourceSuite
    *
    * @param outputBuffer containing data that the Kiji table has in it after the job has been run.
    */
-  def validateImportWithTime(outputBuffer: Buffer[(EntityId, KijiSlice[Utf8])]) {
+  def validateImportWithTime(outputBuffer: Buffer[(EntityId, KijiSlice[String])]) {
     // There should be one cell per row in the output.
     val cellsPerRow = outputBuffer.unzip._2.map { m => (m.getFirst().version, m.getFirst().datum) }
     // Sort by timestamp.
     val cellsSortedByTime = cellsPerRow.sortBy { case(ts, line) => ts }
     // Verify contents.
     (0 until 2).foreach { index =>
-      assert( (index.toLong, new Utf8("Line-" + index)) == cellsSortedByTime(index) )
+      assert( (index.toLong, "Line-" + index) == cellsSortedByTime(index) )
     }
   }
 
@@ -219,22 +218,20 @@ class KijiSourceSuite
     .finish
   }
 
+  // Input tuples to use for version count tests.
+  val versionCountInput: List[(EntityId, KijiSlice[String])] = List(
+    ( id("row01"), slice("family:column1", (10L, "two"), (20L, "two")) ),
+    ( id("row02"), slice("family:column1",
+      (10L, "three"),
+      (20L, "three"),
+      (30L, "three") ) ),
+    ( id("row03"), slice("family:column1", (10L, "hello")) ))
 
   test("a job that requests maxVersions gets them") {
     // Create test Kiji table.
     val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
       table.getURI().toString()
     }
-
-    // Input tuples to use for version count tests.
-    val versionCountInput: List[(EntityId, KijiSlice[Utf8])] = List(
-        ( id("row01"), slice("family:column1", (10L, new Utf8("two")), (20L, new Utf8("two"))) ),
-        ( id("row02"), slice( "family:column1",
-            (10L, new Utf8("three")),
-            (20L, new Utf8("three")),
-            (30L, new Utf8("three")) ) ),
-        ( id("row03"), slice("family:column1", (10L, new Utf8("hello"))) ))
-
 
     def validateVersionCount(outputBuffer: Buffer[(Int, Int)]) {
       val outMap = outputBuffer.toMap
@@ -262,15 +259,6 @@ class KijiSourceSuite
       table.getURI().toString()
     }
 
-    // Input tuples to use for version count tests.
-    val versionCountInput: List[(EntityId, KijiSlice[Utf8])] = List(
-        ( id("row01"), slice("family:column1", (10L, new Utf8("two")), (20L, new Utf8("two"))) ),
-        ( id("row02"), slice("family:column1",
-            (10L, new Utf8("three")),
-            (20L, new Utf8("three")),
-            (30L, new Utf8("three")) ) ),
-        ( id("row03"), slice("family:column1", (10L, new Utf8("hello"))) ))
-
 
     def validateVersionCount(outputBuffer: Buffer[(Int, Int)]) {
       val outMap = outputBuffer.toMap
@@ -290,15 +278,15 @@ class KijiSourceSuite
         .run
         .finish
   }
-  val missingValuesInput: List[(EntityId, KijiSlice[Utf8], KijiSlice[Utf8])]
+  val missingValuesInput: List[(EntityId, KijiSlice[String], KijiSlice[String])]
   = List(
-    (id("row01"), slice("family:column1", (10L, new Utf8("hello"))),
-      slice("family:column2", (10L, new Utf8("hello"))) ),
-    (id("row02"), slice("family:column1", (10L, new Utf8("hello"))), missing() ),
-    (id("row03"), slice("family:column1", (10L, new Utf8("world"))),
-      slice("family:column2", (10L, new Utf8("world"))) ),
-    (id("row04"), slice("family:column1", (10L, new Utf8("hello"))),
-      slice("family:column2", (10L, new Utf8("hello")))))
+    (id("row01"), slice("family:column1", (10L, "hello")),
+      slice("family:column2", (10L, "hello")) ),
+    (id("row02"), slice("family:column1", (10L, "hello")), missing() ),
+    (id("row03"), slice("family:column1", (10L, "world")),
+      slice("family:column2", (10L, "world")) ),
+    (id("row04"), slice("family:column1", (10L, "hello")),
+      slice("family:column2", (10L, "hello"))))
 
   test("Default for missing values is skipping the row.") {
     // Create test Kiji table.
@@ -375,13 +363,13 @@ class KijiSourceSuite
       table.getURI().toString()
     }
     // Input tuples to use for version count tests.
-    val avroCheckerInput: List[(EntityId, KijiSlice[Utf8])] = List(
-        ( id("row01"), slice("family:column1", (10L, new Utf8("two")), (20L, new Utf8("two"))) ),
+    val avroCheckerInput: List[(EntityId, KijiSlice[String])] = List(
+        ( id("row01"), slice("family:column1", (10L,"two"), (20L, "two")) ),
         ( id("row02"), slice("family:column1",
-            (10L, new Utf8("three")),
-            (20L, new Utf8("three")),
-            (30L, new Utf8("three")) ) ),
-        ( id("row03"), slice("family:column1", (10L, new Utf8("hello"))) ))
+            (10L, "three"),
+            (20L, "three"),
+            (30L, "three") ) ),
+        ( id("row03"), slice("family:column1", (10L, "hello")) ))
     // Build test job.
     val testSource = KijiInput(uri)(Map((Column("family:column1", versions=all) -> 'word)))
     JobTest(new AvroToScalaChecker(testSource)(_))
@@ -411,7 +399,7 @@ object KijiSourceSuite extends KijiSuite {
     // Setup input to bind values from the "family:column1" column to the symbol 'word.
     KijiInput(args("input"))("family:column1" -> 'word)
         // Sanitize the word.
-        .map('word -> 'cleanword) { words: KijiSlice[Utf8] =>
+        .map('word -> 'cleanword) { words: KijiSlice[String] =>
           words.getFirstValue()
               .toString()
               .toLowerCase()
@@ -434,7 +422,7 @@ object KijiSourceSuite extends KijiSuite {
   class TwoColumnJob(args: Args) extends Job(args) {
     // Setup input to bind values from the "family:column1" column to the symbol 'word.
     KijiInput(args("input"))("family:column1" -> 'word1, "family:column2" -> 'word2)
-        .map('word1 -> 'pluralword) { words: KijiSlice[Utf8] =>
+        .map('word1 -> 'pluralword) { words: KijiSlice[String] =>
           words.getFirstValue().toString() + "s"
         }
         .write(Tsv(args("output")))
@@ -460,7 +448,7 @@ object KijiSourceSuite extends KijiSuite {
         .map('word2 -> 'pluralword) { words: KijiSlice[String] =>
           words.getFirst().datum + "s"
         }
-        .discard('word1, 'word2)
+        .discard(('word1, 'word2))
         .write(Tsv(args("output")))
   }
 
@@ -477,7 +465,7 @@ object KijiSourceSuite extends KijiSuite {
   class VersionsJob(source: KijiSource)(args: Args) extends Job(args) {
     source
         // Count the size of words (number of versions).
-        .map('words -> 'versioncount) { words: KijiSlice[Utf8] =>
+        .map('words -> 'versioncount) { words: KijiSlice[String] =>
           words.size
         }
         .groupBy('versioncount) (_.size)
@@ -524,10 +512,10 @@ object KijiSourceSuite extends KijiSuite {
 
   class AvroToScalaChecker(source: KijiSource)(args: Args) extends Job(args) {
     source
-      .flatMap('word -> 'matches) { word: KijiSlice[Utf8] =>
-      word.cells.map { cell: Cell[Utf8] =>
+      .flatMap('word -> 'matches) { word: KijiSlice[String] =>
+      word.cells.map { cell: Cell[String] =>
         val value = cell.datum
-        if (value.isInstanceOf[Utf8]) {
+        if (value.isInstanceOf[String]) {
           "true"
         } else {
           "false"

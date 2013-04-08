@@ -21,7 +21,6 @@ package org.kiji.chopsticks
 
 import java.io.InvalidClassException
 import java.util.concurrent.atomic.AtomicLong
-import java.util.TreeMap
 
 import scala.collection.JavaConverters._
 
@@ -38,7 +37,6 @@ import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.generic.GenericData.Fixed
 import org.apache.avro.Schema
 import org.apache.avro.specific.SpecificFixed
-import org.apache.avro.util.Utf8
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang.SerializationUtils
 import org.apache.hadoop.mapred.JobConf
@@ -60,7 +58,6 @@ import org.kiji.schema.KijiRowData
 import org.kiji.schema.KijiTable
 import org.kiji.schema.KijiTableWriter
 import org.kiji.schema.KijiURI
-import org.kiji.schema.layout.InvalidLayoutException
 import org.kiji.schema.layout.KijiTableLayout
 
 /**
@@ -423,7 +420,7 @@ private[chopsticks] object KijiScheme {
       // bytes
       case bb: java.nio.ByteBuffer => bb.array()
       // string
-      case s: java.lang.CharSequence => s
+      case s: java.lang.CharSequence => s.toString
       // array
       case l: java.util.List[Any] => {
         l.asScala

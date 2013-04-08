@@ -128,6 +128,10 @@ class KijiSlice[T] private[chopsticks] (val cells: Seq[Cell[T]]) {
    * @return the number of underlying [[org.kiji.chopsticks.Cell]]s.
    */
   val size: Int = cells.size
+  override def equals(otherSlice: Any): Boolean = otherSlice match {
+    case otherSlice: KijiSlice[T] => (otherSlice.cells == cells)
+    case _ => false
+  }
 }
 
 /**
