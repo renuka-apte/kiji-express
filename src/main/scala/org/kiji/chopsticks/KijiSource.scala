@@ -229,7 +229,6 @@ final class KijiSource private[chopsticks] (
           // Use Kiji's local tap and scheme when reading.
           case Read => {
             val scheme = localKijiScheme
-            println("This is ...." + this)
             populateTestTable(buffers(this), scheme.getSourceFields())
 
             new LocalKijiTap(tableUri, scheme).asInstanceOf[Tap[_, _, _]]
