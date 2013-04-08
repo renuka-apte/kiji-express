@@ -334,7 +334,7 @@ class KijiSourceSuite
       assert(outputBuffer(1)._2 == "missings")
     }
     // Build test job.
-    JobTest(new TwoColumnJob(_))
+    JobTest(new PluralizeReplaceJob(_))
       .arg("input", uri)
       .arg("output", "outputFile")
       .source(KijiInput(uri)(
