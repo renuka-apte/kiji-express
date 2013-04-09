@@ -48,25 +48,14 @@ final case class EntityId private(factory: Option[EntityIdFactory],
           // make sure we are not dealing with the case where we have a HashedEntityId
           // created by a user being compared to its corresponding representation as read
           // from a Kiji table.
-          if ((hbaseEntityId != None) && (eid.hbaseEntityId == None)) {
-            factory match {
-              case Some(thisFactory) =>
-                  thisFactory.getEntityId(
-                      eid.components.map( comp => KijiScheme.convertScalaTypes(comp, null)).asJava
-                  )
-                  .getHBaseRowKey.deep == hbaseEntityId.get.deep
-              case None => false
-            }
-          } else if ((hbaseEntityId == None) && (eid.hbaseEntityId != None)) {
-            eid.factory match {
-              case Some(eidFactory) =>
-                  eidFactory.getEntityId(
-                  components.map( comp => KijiScheme.convertScalaTypes(comp, null)).asJava
-                  )
-                  .getHBaseRowKey.deep == eid.hbaseEntityId.get.deep
-              case None => false
-            }
-          } else {
+          if ((hbaseEntityId == None)^(eid.hbaseEntityId == None)
+          && ((components == null) ^ (eid.components == null))) {
+            // not enough info, happens only in case of suppressed materialization, e.g. hashed
+            // entity ids
+            throw new RuntimeException("User might be comparing keys with suppressed "
+              + "materialization. This is currently not supported.")
+          }
+          else {
             false
           }
         }
