@@ -339,7 +339,7 @@ object KijiSource {
                         getSinkFields(),
                         timestampField,
                         row,
-                        table.getURI)
+                        table.getURI.toString)
                     .foreach { tuple => buffer += tuple }
               }
             }

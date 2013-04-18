@@ -137,14 +137,14 @@ private[express] class KijiScheme(
     val tableUriProperty = flow.getStringProperty(KijiConfKeys.KIJI_INPUT_TABLE_URI)
     // TODO CHOP-71 Remove hack to check for null table uri in sourcePrepare
     // get table layout
-    val tableUri = if (null != tableUriProperty) {
-      KijiURI.newBuilder(tableUriProperty).build()
+    val tableUriString = if (null != tableUriProperty) {
+      KijiURI.newBuilder(tableUriProperty).build().toString
     } else {
       null
     }
     val context = KijiSourceContext(
         sourceCall.getInput().createValue(),
-        tableUri.toString)
+        tableUriString)
     sourceCall.setContext(context)
   }
 
@@ -173,7 +173,7 @@ private[express] class KijiScheme(
     // scalastyle:on null
       val row: KijiRowData = value.get()
       val result: Option[Tuple] = rowToTuple(columns, getSourceFields, timestampField, row,
-          KijiURI.newBuilder(tableUri).build())
+          tableUri)
 
       // If no fields were missing, set the result tuple and return from this method.
       result match {
@@ -346,7 +346,8 @@ private[express] object KijiScheme {
       fields: Fields,
       timestampField: Option[Symbol],
       row: KijiRowData,
-      tableUri: KijiURI): Option[Tuple] = {
+      tableUriString: String): Option[Tuple] = {
+    val tableUri = KijiURI.newBuilder(tableUriString).build()
     val result: Tuple = new Tuple()
     val iterator = fields.iterator().asScala
 

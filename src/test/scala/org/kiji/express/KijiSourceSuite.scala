@@ -26,7 +26,8 @@ import com.twitter.scalding._
 
 import org.kiji.express.DSL._
 import org.kiji.express.Resources.doAndRelease
-import org.kiji.schema.{EntityId => JEntityId, KijiURI, KijiTable}
+import org.kiji.schema.{EntityId => JEntityId}
+import org.kiji.schema.KijiTable
 import org.kiji.schema.layout.KijiTableLayout
 import org.kiji.schema.layout.KijiTableLayouts
 
@@ -36,9 +37,10 @@ class KijiSourceSuite
 
   /** Table layout to use for tests. */
   val layout: KijiTableLayout = layout(KijiTableLayouts.SIMPLE_TWO_COLUMNS)
+
   // Create test Kiji table.
-  val uri:KijiURI = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
-    table.getURI()
+  val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+    table.getURI().toString()
   }
 
   /** Input tuples to use for word count tests. */
@@ -62,11 +64,16 @@ class KijiSourceSuite
   }
 
   test("a word-count job that reads from a Kiji table is run using Scalding's local mode") {
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+
     // Build test job.
     JobTest(new WordCountJob(_))
-        .arg("input", uri.toString)
+        .arg("input", uri)
         .arg("output", "outputFile")
-        .source(KijiInput(uri.toString)("family:column1" -> 'word), wordCountInput)
+        .source(KijiInput(uri)("family:column1" -> 'word), wordCountInput)
         .sink(Tsv("outputFile"))(validateWordCount)
         // Run the test job.
         .run
@@ -74,11 +81,16 @@ class KijiSourceSuite
   }
 
   test("a word-count job that reads from a Kiji table is run using Hadoop") {
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+
     // Build test job.
     JobTest(new WordCountJob(_))
-        .arg("input", uri.toString)
+        .arg("input", uri)
         .arg("output", "outputFile")
-        .source(KijiInput(uri.toString)("family:column1" -> 'word), wordCountInput)
+        .source(KijiInput(uri)("family:column1" -> 'word), wordCountInput)
         .sink(Tsv("outputFile"))(validateWordCount)
         // Run the test job.
         .runHadoop
@@ -112,26 +124,34 @@ class KijiSourceSuite
   }
 
   test("An import job with multiple timestamps imports all timestamps in local mode.") {
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+
     // Build test job.
     JobTest(new MultipleTimestampsImportJob(_))
         .arg("input", "inputFile")
-        .arg("output", uri.toString)
+        .arg("output", uri)
         .source(TextLine("inputFile"), importMultipleTimestamps)
-        .sink(KijiOutput(uri.toString, 'timestamp)
-            ('word -> "family:column1"))(validateMultipleTimestamps)
+        .sink(KijiOutput(uri, 'timestamp)('word -> "family:column1"))(validateMultipleTimestamps)
         // Run the test job.
         .run
         .finish
   }
 
   test("An import with multiple timestamps imports all timestamps using Hadoop.") {
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+
     // Build test job.
     JobTest(new MultipleTimestampsImportJob(_))
         .arg("input", "inputFile")
-        .arg("output", uri.toString)
+        .arg("output", uri)
         .source(TextLine("inputFile"), importMultipleTimestamps)
-        .sink(KijiOutput(uri.toString, 'timestamp)
-            ('word -> "family:column1"))(validateMultipleTimestamps)
+        .sink(KijiOutput(uri, 'timestamp)('word -> "family:column1"))(validateMultipleTimestamps)
         // Run the test job.
         .run
         .finish
@@ -147,7 +167,7 @@ class KijiSourceSuite
    *
    * @param outputBuffer containing data that the Kiji table has in it after the job has been run.
    */
-  def validateImport(outputBuffer: Buffer[(JEntityId, KijiSlice[String])]) {
+  def validateImport(outputBuffer: Buffer[(EntityId, KijiSlice[String])]) {
     assert(10 === outputBuffer.size)
 
     // Perform a non-distributed word count.
@@ -177,24 +197,34 @@ class KijiSourceSuite
   }
 
   test("an import job that writes to a Kiji table is run using Scalding's local mode") {
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+
     // Build test job.
     JobTest(new ImportJob(_))
         .arg("input", "inputFile")
-        .arg("output", uri.toString)
+        .arg("output", uri)
         .source(TextLine("inputFile"), importInput)
-        .sink(KijiOutput(uri.toString)('word -> "family:column1"))(validateImport)
+        .sink(KijiOutput(uri)('word -> "family:column1"))(validateImport)
         // Run the test job.
         .run
         .finish
   }
 
   test("an import job that writes to a Kiji table is run using Hadoop") {
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+
     // Build test job.
     JobTest(new ImportJob(_))
         .arg("input", "inputFile")
-        .arg("output", uri.toString)
+        .arg("output", uri)
         .source(TextLine("inputFile"), importInput)
-        .sink(KijiOutput(uri.toString)('word -> "family:column1"))(validateImport)
+        .sink(KijiOutput(uri)('word -> "family:column1"))(validateImport)
         // Run the test job.
         .runHadoop
         .finish
@@ -207,7 +237,7 @@ class KijiSourceSuite
    *
    * @param outputBuffer containing data that the Kiji table has in it after the job has been run.
    */
-  def validateImportWithTime(outputBuffer: Buffer[(JEntityId, KijiSlice[String])]) {
+  def validateImportWithTime(outputBuffer: Buffer[(EntityId, KijiSlice[String])]) {
     // There should be one cell per row in the output.
     val cellsPerRow = outputBuffer.unzip._2.map { m => (m.getFirst().version, m.getFirst().datum) }
     // Sort by timestamp.
@@ -220,24 +250,34 @@ class KijiSourceSuite
 
   test("an import job that writes to a Kiji table with timestamps is run using Scalding's local "
       + "mode") {
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+
     // Build test job.
     JobTest(new ImportJobWithTime(_))
     .arg("input", "inputFile")
-    .arg("output", uri.toString)
+    .arg("output", uri)
     .source(TextLine("inputFile"), importWithTimeInput)
-    .sink(KijiOutput(uri.toString, 'offset)('line -> "family:column1"))(validateImportWithTime)
+    .sink(KijiOutput(uri, 'offset)('line -> "family:column1"))(validateImportWithTime)
     // Run the test job.
     .run
     .finish
   }
 
   test("an import job that writes to a Kiji table with timestamps is run using Hadoop") {
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+
     // Build test job.
     JobTest(new ImportJobWithTime(_))
     .arg("input", "inputFile")
-    .arg("output", uri.toString)
+    .arg("output", uri)
     .source(TextLine("inputFile"), importWithTimeInput)
-    .sink(KijiOutput(uri.toString, 'offset)('line -> "family:column1"))(validateImportWithTime)
+    .sink(KijiOutput(uri, 'offset)('line -> "family:column1"))(validateImportWithTime)
     // Run the test job.
     .runHadoop
     .finish
@@ -283,6 +323,7 @@ class KijiSourceSuite
     val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
       table.getURI().toString()
     }
+
 
     def validateVersionCount(outputBuffer: Buffer[(Int, Int)]) {
       val outMap = outputBuffer.toMap
@@ -342,11 +383,9 @@ class KijiSourceSuite
     }
     def validateMissingValuesReplaced(outputBuffer: Buffer[(String, String)]) {
       assert(4 === outputBuffer.size)
-      val values = outputBuffer.toMap.values.toList
-      assert(values.contains("hellos"))
-      assert(values.contains("missings"))
+      assert(outputBuffer(0)._2 == "hellos")
+      assert(outputBuffer(1)._2 == "missings")
     }
-
     // Build test job.
     JobTest(new PluralizeReplaceJob(_))
       .arg("input", uri)
@@ -384,7 +423,10 @@ class KijiSourceSuite
       intercept[java.util.NoSuchElementException]{outMap("false")}
       assert(6 === outMap("true"))
     }
-
+    // Create test Kiji table.
+    val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
     // Input tuples to use for version count tests.
     val avroCheckerInput: List[(EntityId, KijiSlice[String])] = List(
         ( EntityId(uri)("row01"), slice("family:column1", (10L,"two"), (20L, "two")) ),
@@ -394,10 +436,9 @@ class KijiSourceSuite
             (30L, "three") ) ),
         ( EntityId(uri)("row03"), slice("family:column1", (10L, "hello")) ))
     // Build test job.
-    val tableUri = uri.toString
-    val testSource = KijiInput(tableUri)(Map((Column("family:column1", versions=all) -> 'word)))
+    val testSource = KijiInput(uri)(Map((Column("family:column1", versions=all) -> 'word)))
     JobTest(new AvroToScalaChecker(testSource)(_))
-      .arg("input", uri.toString)
+      .arg("input", uri)
       .arg("output", "outputFile")
       .source(testSource, avroCheckerInput)
       .sink(Tsv("outputFile"))(validateSimpleAvroChecker)
@@ -497,7 +538,6 @@ object KijiSourceSuite extends KijiSuite {
   }
 
   class MultipleTimestampsImportJob(args: Args) extends Job(args) {
-    val uri = KijiURI.newBuilder(args("output")).build()
     // Setup input.
     TextLine(args("input"))
         .read
@@ -505,7 +545,7 @@ object KijiSourceSuite extends KijiSuite {
         .map('line -> ('timestamp, 'entityId, 'word)) { line: String =>
           val Array(timestamp, eid, token) = line.split("\\s+")
 
-          (timestamp.toLong, EntityId(uri)(eid), token)
+          (timestamp.toLong, EntityId(args("output"))(eid), token)
         }
         // Write the results to the "family:column1" column of a Kiji table.
         .write(KijiOutput(args("output"), 'timestamp)('word -> "family:column1"))
@@ -520,16 +560,13 @@ object KijiSourceSuite extends KijiSuite {
    *     text file, and "output", which specifies the URI to a Kiji table.
    */
   class ImportJob(args: Args) extends Job(args) {
-    val uri = KijiURI.newBuilder(args("output")).build()
     // Setup input.
     TextLine(args("input"))
         .read
         // Get the words in each line.
         .flatMap('line -> 'word) { line : String => line.split("\\s+") }
         // Generate an entityId for each word.
-        .map('word -> 'entityId) { _: String =>
-            EntityId(uri)(UUID.randomUUID().toString())
-        }
+        .map('word -> 'entityId) { _: String => EntityId(args("output"))(UUID.randomUUID().toString()) }
         // Write the results to the "family:column1" column of a Kiji table.
         .write(KijiOutput(args("output"))('word -> "family:column1"))
   }
@@ -543,12 +580,11 @@ object KijiSourceSuite extends KijiSuite {
    *     text file, and "output", which specifies the URI to a Kiji table.
    */
   class ImportJobWithTime(args: Args) extends Job(args) {
-    val uri = KijiURI.newBuilder(args("output")).build()
     // Setup input.
     TextLine(args("input"))
     .read
     // Generate an entityId for each line.
-    .map('line -> 'entityId) { EntityId(uri)(_: String) }
+    .map('line -> 'entityId) { EntityId(args("output"))(_: String) }
     // Write the results to the "family:column1" column of a Kiji table.
     .write(KijiOutput(args("output"), 'offset)('line -> "family:column1"))
   }

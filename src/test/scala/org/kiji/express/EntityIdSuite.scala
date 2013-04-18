@@ -33,17 +33,17 @@ class EntityIdSuite extends KijiSuite {
   val tableLayoutFormatted = KijiTableLayout.newLayout(
     KijiTableLayouts.getLayout(KijiTableLayouts.FORMATTED_RKF))
   // Create a table to use for testing
-  val tableUriFormatted: KijiURI = doAndRelease(makeTestKijiTable(tableLayoutFormatted)) {
+  val tableUriFormatted: String = doAndRelease(makeTestKijiTable(tableLayoutFormatted)) {
     table: KijiTable =>
-    table.getURI
+    table.getURI.toString
   }
 
   val tableLayoutHashed = KijiTableLayout.newLayout(
     KijiTableLayouts.getLayout(KijiTableLayouts.HASHED_FORMATTED_RKF))
   // Create a table to use for testing
-  val tableUriHashed: KijiURI = doAndRelease(makeTestKijiTable(tableLayoutHashed)) {
+  val tableUriHashed: String = doAndRelease(makeTestKijiTable(tableLayoutHashed)) {
     table: KijiTable =>
-      table.getURI
+      table.getURI.toString
   }
 
   test("Create an EntityId from EntityIdContainer and vice versa") {
@@ -58,7 +58,8 @@ class EntityIdSuite extends KijiSuite {
         .asJava
     assert(expected == entityId.getComponents)
 
-    val recreate = EntityId(tableUriFormatted, entityId)
+    val tableUri: KijiURI = KijiURI.newBuilder(tableUriFormatted).build()
+    val recreate = EntityId(tableUri, entityId)
     assert(eid == recreate)
     assert(recreate(0) == "test")
   }
@@ -70,8 +71,9 @@ class EntityIdSuite extends KijiSuite {
     // get the Java EntityId
     val jEntityId: JEntityId = eid1.getEntityId()
 
+    val tableUri: KijiURI = KijiURI.newBuilder(tableUriHashed).build()
     // this is how it would look if it were read from a table
-    val tableEid = EntityId(tableUriHashed, jEntityId)
+    val tableEid = EntityId(tableUri, jEntityId)
 
     // ensure equals works both ways
     assert(tableEid == eid1)
@@ -82,7 +84,7 @@ class EntityIdSuite extends KijiSuite {
     assert(otherEid != eid1)
     assert(otherEid != tableEid)
 
-    val tableEid2 = EntityId(tableUriHashed, eid2.getEntityId())
+    val tableEid2 = EntityId(tableUri, eid2.getEntityId())
     assert(tableEid == tableEid2)
   }
 }
