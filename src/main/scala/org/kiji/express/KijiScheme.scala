@@ -144,7 +144,7 @@ private[express] class KijiScheme(
     }
     val context = KijiSourceContext(
         sourceCall.getInput().createValue(),
-        tableUri)
+        tableUri.toString)
     sourceCall.setContext(context)
   }
 
@@ -172,7 +172,8 @@ private[express] class KijiScheme(
     while (sourceCall.getInput().next(null, value)) {
     // scalastyle:on null
       val row: KijiRowData = value.get()
-      val result: Option[Tuple] = rowToTuple(columns, getSourceFields, timestampField, row, tableUri)
+      val result: Option[Tuple] = rowToTuple(columns, getSourceFields, timestampField, row,
+          KijiURI.newBuilder(tableUri).build())
 
       // If no fields were missing, set the result tuple and return from this method.
       result match {

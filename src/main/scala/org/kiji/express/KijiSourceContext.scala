@@ -29,11 +29,11 @@ import org.kiji.schema.KijiURI
  * task while reading from a Kiji table.
  *
  * @param rowContainer is the representation of a Kiji row.
- * @param tableUri is the URI of the Kiji table.
+ * @param tableUriString is the URI of the Kiji table.
  */
 @ApiAudience.Private
 @ApiStability.Experimental
 private[express] case class KijiSourceContext (
     rowContainer: KijiValue,
-    tableUri: KijiURI) {
+    tableUriString: String) {
 }

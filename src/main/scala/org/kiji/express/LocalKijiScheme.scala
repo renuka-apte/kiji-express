@@ -55,13 +55,13 @@ import org.kiji.schema.layout.KijiTableLayout
  * @param reader that has an open connection to the desired Kiji table.
  * @param scanner that has an open connection to the desired Kiji table.
  * @param iterator that maintains the current row pointer.
- * @param tableUri of the kiji table.
+ * @param tableUriString of the kiji table.
  */
 private[express] case class InputContext(
     reader: KijiTableReader,
     scanner: KijiRowScanner,
     iterator: Iterator[KijiRowData],
-    tableUri: KijiURI)
+    tableUriString: String)
 
 /**
  * Encapsulates the state required to write to a Kiji table.
@@ -153,7 +153,7 @@ private[express] class LocalKijiScheme(
         val request = KijiScheme.buildRequest(timeRange, columns.values)
         val reader = table.openTableReader()
         val scanner = reader.getScanner(request)
-        val tableUri = table.getURI
+        val tableUri = table.getURI.toString
         val context = InputContext(reader, scanner, scanner.iterator.asScala, tableUri)
 
         sourceCall.setContext(context)
@@ -182,7 +182,8 @@ private[express] class LocalKijiScheme(
       // Get the current row.
       val row: KijiRowData = context.iterator.next()
       val result: Option[Tuple] =
-          KijiScheme.rowToTuple(columns, getSourceFields, timestampField, row, context.tableUri)
+          KijiScheme.rowToTuple(columns, getSourceFields, timestampField, row,
+              KijiURI.newBuilder(context.tableUriString).build())
 
       // If no fields were missing, set the result tuple and return from this method.
       result match {

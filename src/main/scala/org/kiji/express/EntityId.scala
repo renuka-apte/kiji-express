@@ -115,4 +115,9 @@ object EntityId{
         components:_*)
   }
 
+  def apply(tableUriString: String)(components: Any*): EntityId = {
+    val tableUri = KijiURI.newBuilder(tableUriString).build()
+    EntityId(tableUri)(components:_*)
+  }
+
 }
