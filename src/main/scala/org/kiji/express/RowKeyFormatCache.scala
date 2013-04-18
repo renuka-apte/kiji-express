@@ -19,18 +19,47 @@
 
 package org.kiji.express
 
-import org.kiji.schema.{KijiTable, Kiji, EntityIdFactory, KijiURI}
 import scala.collection.mutable
-import org.kiji.express.Resources._
 
+import org.kiji.annotations.ApiAudience
+import org.kiji.annotations.ApiStability
+import org.kiji.express.Resources._
+import org.kiji.schema.EntityIdFactory
+import org.kiji.schema.Kiji
+import org.kiji.schema.KijiTable
+import org.kiji.schema.KijiURI
+
+/**
+ * In order to unambiguously create scala EntityIds, we require the row key format, or in
+ * other words, the table corresponding to this EntityId.
+ * If we were to open a Kiji connection for each entityId we created in the flow, it would
+ * cause a significant performance hit. Instead, we cache the mapping from a table to its
+ * EntityIdFactory, once per JVM using a RowKeyFormatCache.
+ */
+@ApiAudience.Private
+@ApiStability.Experimental
 object RowKeyFormatCache {
   val rowKeyFormatCache = new mutable.HashMap[KijiURI, EntityIdFactory]()
 
+  /**
+   *  Get an EntityIdFactory, either from the cache or by opening a Kiji table, if
+   *  it is not cached.
+   *
+   * @param tableUriString is the string representing a [[org.kiji.schema.KijiURI]].
+   * @return the EntityIdFactory to generate an EntityId for this table.
+   */
   def getFactory(tableUriString: String) : EntityIdFactory = {
     val inputTableURI: KijiURI = KijiURI.newBuilder(tableUriString).build()
     getFactory(inputTableURI)
   }
 
+  /**
+   * Get an EntityIdFactory, either from the cache or by opening a Kiji table, if
+   * it is not cached.
+   *
+   * @param tableUri is the unique [[org.kiji.schema.KijiURI]] for the table.
+   * @return the EntityIdFactory to generate an EntityId for this table.
+   */
   def getFactory(tableUri: KijiURI): EntityIdFactory = {
     if (rowKeyFormatCache.contains(tableUri)) {
       rowKeyFormatCache(tableUri)

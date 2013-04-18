@@ -58,7 +58,6 @@ import org.kiji.schema.KijiRowData
 import org.kiji.schema.KijiTable
 import org.kiji.schema.KijiTableWriter
 import org.kiji.schema.KijiURI
-import org.kiji.schema.EntityIdFactory
 import org.kiji.schema.layout.KijiTableLayout
 
 /**

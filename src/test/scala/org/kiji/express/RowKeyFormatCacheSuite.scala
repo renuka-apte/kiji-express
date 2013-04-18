@@ -19,12 +19,14 @@
 
 package org.kiji.express
 
-import org.scalatest.FunSuite
 import org.kiji.express.Resources._
-import org.kiji.schema.{EntityIdFactory, KijiTable}
-import org.kiji.schema.layout.{KijiTableLayouts, KijiTableLayout}
-import java.lang.Long
+import org.kiji.schema.KijiTable
+import org.kiji.schema.layout.KijiTableLayout
+import org.kiji.schema.layout.KijiTableLayouts
 
+/**
+ * Unit tests for [[org.kiji.express.RowKeyFormatCache]]
+ */
 class RowKeyFormatCacheSuite extends KijiSuite {
   test("Test for caching for Row Key Format given Table Uri") {
     /** Table layout to use for tests. */

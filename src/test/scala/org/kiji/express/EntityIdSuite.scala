@@ -21,13 +21,16 @@ package org.kiji.express
 
 import scala.collection.JavaConverters._
 
-import org.scalatest.FunSuite
-import org.kiji.schema.avro._
-import org.kiji.schema.{EntityId => JEntityId, KijiURI, KijiTable, EntityIdFactory}
-import org.kiji.schema.layout.{KijiTableLayouts, KijiTableLayout}
 import org.kiji.express.Resources._
+import org.kiji.schema.{EntityId => JEntityId}
+import org.kiji.schema.KijiTable
+import org.kiji.schema.KijiURI
+import org.kiji.schema.layout.KijiTableLayout
+import org.kiji.schema.layout.KijiTableLayouts
 
-
+/**
+ * Unit tests for [[org.kiji.express.EntityId]]
+ */
 class EntityIdSuite extends KijiSuite {
   /** Table layout to use for tests. */
   val tableLayoutFormatted = KijiTableLayout.newLayout(

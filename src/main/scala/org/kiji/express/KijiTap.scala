@@ -22,6 +22,7 @@ package org.kiji.express
 import java.util.UUID
 
 import cascading.flow.FlowProcess
+import cascading.flow.hadoop.HadoopFlowProcess
 import cascading.scheme.Scheme
 import cascading.tap.Tap
 import cascading.tap.hadoop.io.HadoopTupleEntrySchemeCollector
@@ -41,7 +42,6 @@ import org.kiji.express.Resources.doAndRelease
 import org.kiji.mapreduce.framework.KijiConfKeys
 import org.kiji.schema.Kiji
 import org.kiji.schema.KijiURI
-import cascading.flow.hadoop.HadoopFlowProcess
 
 /**
  * A Kiji-specific implementation of a Cascading `Tap`, which defines the location of a Kiji table.
