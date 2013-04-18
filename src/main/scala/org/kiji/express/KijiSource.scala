@@ -257,7 +257,7 @@ object KijiSource {
           // Write the timeline to the table.
           cells.map { cell: Cell[Any] =>
             writer.put(
-                entityId,
+                entityId.getEntityId(),
                 cell.family,
                 cell.qualifier,
                 cell.version,
@@ -339,7 +339,7 @@ object KijiSource {
                         getSinkFields(),
                         timestampField,
                         row,
-                        table.getLayout)
+                        table.getURI)
                     .foreach { tuple => buffer += tuple }
               }
             }

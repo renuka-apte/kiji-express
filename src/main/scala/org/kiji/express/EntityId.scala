@@ -17,11 +17,11 @@
  * limitations under the License.
  */
 
-package org.kiji.chopsticks
+package org.kiji.express
 
 import scala.collection.JavaConverters._
-import org.kiji.schema.{EntityId => JEntityId}
-import org.kiji.schema.EntityIdFactory
+import org.kiji.schema.{EntityId => JEntityId, KijiURI, EntityIdFactory}
+import java.lang.IllegalStateException
 
 /**
  * This is the Chopsticks representation of a Kiji EntityId.
@@ -36,48 +36,17 @@ import org.kiji.schema.EntityIdFactory
  *
  * @param components is a variable number of objects that compose this EntityId.
  */
-final case class EntityId private(factory: Option[EntityIdFactory],
-    hbaseEntityId: Option[Array[Byte]], components: Any*){
+final case class EntityId private(tableUriString: String,
+      hbaseEntityId: Array[Byte], components: Any*){
   override def equals(obj: Any): Boolean = {
     obj match {
       case eid: EntityId => {
-        if ((components == eid.components && components != null)
-            || (hbaseEntityId == eid.hbaseEntityId && hbaseEntityId != None)) {
+        if (hbaseEntityId.deep == eid.hbaseEntityId.deep)
           true
-        } else {
-          // make sure we are not dealing with the case where we have a HashedEntityId
-          // created by a user being compared to its corresponding representation as read
-          // from a Kiji table.
-          if ((hbaseEntityId == None)^(eid.hbaseEntityId == None)
-          && ((components == null) ^ (eid.components == null))) {
-            // not enough info, happens only in case of suppressed materialization, e.g. hashed
-            // entity ids
-            throw new RuntimeException("User might be comparing keys with suppressed "
-              + "materialization. This is currently not supported.")
-          }
-          else {
-            false
-          }
-        }
+        else
+          false
       }
       case _ => false
-    }
-  }
-
-  /**
-   * Get the kiji schema class [[org.kiji.schema.EntityId]] for the given
-   * components.
-   * @param factory is the [[org.kiji.schema.EntityIdFactory]] for the row keys in this
-   *                Kiji table.
-   * @return the [[org.kiji.schema.EntityId]] using the components for the Kiji table.
-   */
-  private[chopsticks] def getEntityId(factory: EntityIdFactory): JEntityId = {
-    hbaseEntityId match {
-      case Some(hbaseKey) => factory.getEntityIdFromHBaseRowKey(hbaseKey)
-      case None => {
-        factory.getEntityId(components.map( comp =>
-            KijiScheme.convertScalaTypes(comp, null)).asJava)
-      }
     }
   }
 
@@ -92,6 +61,14 @@ final case class EntityId private(factory: Option[EntityIdFactory],
       + "because you have suppressed materialization or used Hashed Entity Ids")
     components(index)
   }
+
+  def getEntityId(): JEntityId = {
+    val eidFactory = RowKeyFormatCache.getFactory(KijiURI.newBuilder(tableUriString).build())
+    val javaComponents: java.util.List[Object] = components.toList
+      .map { elem => KijiScheme.convertScalaTypes(elem, null) }
+      .asJava
+    eidFactory.getEntityId(javaComponents)
+  }
 }
 
 object EntityId{
@@ -103,17 +80,19 @@ object EntityId{
    * have a factory lying around, we need to store it.
    *
    * @param entityId is the [[org.kiji.schema.EntityId]].
-   * @param factory is the factory which was used to create the entityId.
    * @return the Chopsticks representation of this EntityId.
    */
-  private [chopsticks] def apply(entityId: JEntityId, factory: EntityIdFactory): EntityId = {
-    try {
-      EntityId(Option(factory), Some(entityId.getHBaseRowKey), entityId.getComponents.asScala:_*)
+  private [express] def apply(tableUri: KijiURI, entityId: JEntityId): EntityId = {
+    val components = try {
+      entityId.getComponents
+        .asScala
+        .toList
+        .map { elem => KijiScheme.convertJavaTypes(elem) }
     } catch {
-      case exc: java.lang.IllegalStateException => {
-        EntityId(Option(factory), Some(entityId.getHBaseRowKey), null)
-      }
+      case ise: IllegalStateException => null
     }
+    EntityId(tableUri.toString,
+        entityId.getHBaseRowKey, components:_*)
   }
 
   /**
@@ -121,11 +100,19 @@ object EntityId{
    * @param components is a variable list of objects representing the EntityId.
    * @return a Chopsticks EntityId.
    */
-  def apply(components: Any*): EntityId = {
-    if (components.size == 1 && components(0).isInstanceOf[JEntityId]) {
-      throw new RuntimeException("You need to provide the EntityId factory in order to create "
-        + "a Chopsticks EntityId from a Scala EntityId")
+  def apply(tableUri: KijiURI)(components: Any*): EntityId = {
+    if ((components.size == 1) && (components.isInstanceOf[JEntityId])) {
+      throw new IllegalArgumentException("Trying to create scala EntityId using"
+        + " a Java EntityId as component. You probably want to use EntityId(KijiURI, JEntityId) "
+        + "for doing this.")
     }
-    EntityId(None, None, components:_*)
+    val jEntityIdFactory = RowKeyFormatCache.getFactory(tableUri)
+    val javaComponents: java.util.List[Object] = components.toList
+        .map { elem => KijiScheme.convertScalaTypes(elem, null) }
+        .asJava
+    EntityId(tableUri.toString,
+        jEntityIdFactory.getEntityId(javaComponents).getHBaseRowKey,
+        components:_*)
   }
+
 }

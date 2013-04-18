@@ -137,19 +137,14 @@ private[express] class KijiScheme(
     val tableUriProperty = flow.getStringProperty(KijiConfKeys.KIJI_INPUT_TABLE_URI)
     // TODO CHOP-71 Remove hack to check for null table uri in sourcePrepare
     // get table layout
-    val tableLayout = if (null != tableUriProperty) {
-      val tableUri: KijiURI = KijiURI.newBuilder(tableUriProperty).build()
-      doAndRelease(Kiji.Factory.open(tableUri)) { kiji: Kiji =>
-        doAndRelease(kiji.openTable(tableUri.getTable())) { table: KijiTable =>
-            table.getLayout()
-        }
-      }
+    val tableUri = if (null != tableUriProperty) {
+      KijiURI.newBuilder(tableUriProperty).build()
     } else {
       null
     }
     val context = KijiSourceContext(
         sourceCall.getInput().createValue(),
-        tableLayout)
+        tableUri)
     sourceCall.setContext(context)
   }
 
@@ -166,7 +161,7 @@ private[express] class KijiScheme(
       flow: FlowProcess[JobConf],
       sourceCall: SourceCall[KijiSourceContext, RecordReader[KijiKey, KijiValue]]): Boolean = {
     // Get the current key/value pair.
-    val KijiSourceContext(value, layout) = sourceCall.getContext()
+    val KijiSourceContext(value, tableUri) = sourceCall.getContext()
 
     // Get the first row where all the requested columns are present,
     // and use that to set the result tuple.
@@ -177,7 +172,7 @@ private[express] class KijiScheme(
     while (sourceCall.getInput().next(null, value)) {
     // scalastyle:on null
       val row: KijiRowData = value.get()
-      val result: Option[Tuple] = rowToTuple(columns, getSourceFields, timestampField, row, layout)
+      val result: Option[Tuple] = rowToTuple(columns, getSourceFields, timestampField, row, tableUri)
 
       // If no fields were missing, set the result tuple and return from this method.
       result match {
@@ -350,12 +345,12 @@ private[express] object KijiScheme {
       fields: Fields,
       timestampField: Option[Symbol],
       row: KijiRowData,
-      layout: KijiTableLayout): Option[Tuple] = {
+      tableUri: KijiURI): Option[Tuple] = {
     val result: Tuple = new Tuple()
     val iterator = fields.iterator().asScala
 
     // Add the row's EntityId to the tuple.
-    result.add(EntityId(row.getEntityId(), EntityIdFactory.getFactory(layout)))
+    result.add(EntityId(tableUri, row.getEntityId()))
 
     // Get rid of the entity id and timestamp fields, then map over each field to add a column
     // to the tuple.
@@ -481,8 +476,7 @@ private[express] object KijiScheme {
 
     // Get the entityId.
     val entityId: EntityId = output.getObject(entityIdField).asInstanceOf[EntityId]
-    // Get the Kiji EntityIdFactory for this table
-    val entityIdFactory = EntityIdFactory.getFactory(layout)
+
 
     // Get a timestamp to write the values to, if it was specified by the user.
     val timestamp: Long = timestampField match {
@@ -506,7 +500,7 @@ private[express] object KijiScheme {
           val kijiCol = new KijiColumnName(family, qualifier)
           val value = output.getObject(fieldName.toString())
           writer.put(
-              entityId.getEntityId(entityIdFactory),
+              entityId.getEntityId(),
               family,
               qualifier,
               timestamp,
