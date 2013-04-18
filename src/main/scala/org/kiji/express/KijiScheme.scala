@@ -135,16 +135,10 @@ private[express] class KijiScheme(
       flow: FlowProcess[JobConf],
       sourceCall: SourceCall[KijiSourceContext, RecordReader[KijiKey, KijiValue]]) {
     val tableUriProperty = flow.getStringProperty(KijiConfKeys.KIJI_INPUT_TABLE_URI)
-    // TODO CHOP-71 Remove hack to check for null table uri in sourcePrepare
-    // get table layout
-    val tableUriString = if (null != tableUriProperty) {
-      KijiURI.newBuilder(tableUriProperty).build().toString
-    } else {
-      null
-    }
+
     val context = KijiSourceContext(
         sourceCall.getInput().createValue(),
-        tableUriString)
+        tableUriProperty)
     sourceCall.setContext(context)
   }
 

@@ -41,10 +41,11 @@ final case class EntityId private(tableUriString: String,
   override def equals(obj: Any): Boolean = {
     obj match {
       case eid: EntityId => {
-        if (hbaseEntityId.deep == eid.hbaseEntityId.deep)
+        if (hbaseEntityId.deep == eid.hbaseEntityId.deep) {
           true
-        else
+        } else {
           false
+        }
       }
       case _ => false
     }
@@ -82,7 +83,7 @@ object EntityId{
    * @param entityId is the [[org.kiji.schema.EntityId]].
    * @return the Chopsticks representation of this EntityId.
    */
-  private [express] def apply(tableUri: KijiURI, entityId: JEntityId): EntityId = {
+  private[express] def apply(tableUri: KijiURI, entityId: JEntityId): EntityId = {
     val components = try {
       entityId.getComponents
         .asScala

@@ -381,10 +381,13 @@ class KijiSourceSuite
     val uri: String = doAndRelease(makeTestKijiTable(layout)) { table: KijiTable =>
       table.getURI().toString()
     }
-    def validateMissingValuesReplaced(outputBuffer: Buffer[(String, String)]) {
+    def validateMissingValuesReplaced(outputBuffer: Buffer[(EntityId, String)]) {
       assert(4 === outputBuffer.size)
-      assert(outputBuffer(0)._2 == "hellos")
-      assert(outputBuffer(1)._2 == "missings")
+      val eid_hello:EntityId = EntityId(uri)("row01")
+      val eid_missings: EntityId = EntityId(uri)("row02")
+      val outMap = outputBuffer.toMap
+      assert(outMap(eid_hello) == "hellos")
+      assert(outMap(eid_missings) == "missings")
     }
     // Build test job.
     JobTest(new PluralizeReplaceJob(_))
@@ -566,7 +569,8 @@ object KijiSourceSuite extends KijiSuite {
         // Get the words in each line.
         .flatMap('line -> 'word) { line : String => line.split("\\s+") }
         // Generate an entityId for each word.
-        .map('word -> 'entityId) { _: String => EntityId(args("output"))(UUID.randomUUID().toString()) }
+        .map('word -> 'entityId) { _: String =>
+            EntityId(args("output"))(UUID.randomUUID().toString()) }
         // Write the results to the "family:column1" column of a Kiji table.
         .write(KijiOutput(args("output"))('word -> "family:column1"))
   }

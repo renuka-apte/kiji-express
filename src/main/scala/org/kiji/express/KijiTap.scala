@@ -41,6 +41,7 @@ import org.kiji.express.Resources.doAndRelease
 import org.kiji.mapreduce.framework.KijiConfKeys
 import org.kiji.schema.Kiji
 import org.kiji.schema.KijiURI
+import cascading.flow.hadoop.HadoopFlowProcess
 
 /**
  * A Kiji-specific implementation of a Cascading `Tap`, which defines the location of a Kiji table.
@@ -127,8 +128,17 @@ private[express] class KijiTap(
   override def openForRead(
       flow: FlowProcess[JobConf],
       recordReader: RecordReader[KijiKey, KijiValue]): TupleEntryIterator = {
+    val modifiedFlow = if (flow.getStringProperty(KijiConfKeys.KIJI_INPUT_TABLE_URI) == null) {
+      // TODO CHOP-71 Remove hack to check for null table uri in sourcePrepare
+      val jconf = flow.getConfigCopy
+      val fp = new HadoopFlowProcess(jconf)
+      sourceConfInit(fp, jconf)
+      fp
+    } else {
+      flow
+    }
     new HadoopTupleEntrySchemeIterator(
-        flow,
+        modifiedFlow,
         this.asInstanceOf[Tap[JobConf, RecordReader[_, _], OutputCollector[_, _]]],
         recordReader)
   }
