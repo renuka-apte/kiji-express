@@ -22,9 +22,7 @@ package org.kiji.express
 import scala.collection.JavaConverters._
 
 import org.kiji.express.Resources._
-import org.kiji.schema.{EntityId => JEntityId}
-import org.kiji.schema.KijiTable
-import org.kiji.schema.KijiURI
+import org.kiji.schema.{EntityId => JEntityId, EntityIdFactory, KijiTable, KijiURI}
 import org.kiji.schema.layout.KijiTableLayout
 import org.kiji.schema.layout.KijiTableLayouts
 
@@ -89,5 +87,20 @@ class EntityIdSuite extends KijiSuite {
 
     val tableEid2 = EntityId(tableUri, eid2.getEntityId())
     assert(tableEid == tableEid2)
+  }
+
+  test("EntityIds from Java EntityIds are created using the right API") {
+    val eidFactory: EntityIdFactory = EntityIdFactory.getFactory(tableLayoutFormatted)
+    val components: java.util.List[java.lang.Object] = List[java.lang.Object](
+      "test",
+      "1",
+      "2",
+      new java.lang.Integer(1),
+      new java.lang.Long(7))
+      .asJava
+    val jeid: JEntityId = eidFactory.getEntityId(components)
+    intercept[IllegalArgumentException]{
+      EntityId(tableUriFormatted)(jeid)
+    }
   }
 }

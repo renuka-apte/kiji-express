@@ -19,7 +19,7 @@
 
 package org.kiji.express
 
-import scala.collection.mutable
+import scala.collection.mutable.HashMap
 
 import org.kiji.annotations.ApiAudience
 import org.kiji.annotations.ApiStability
@@ -39,7 +39,7 @@ import org.kiji.schema.KijiURI
 @ApiAudience.Private
 @ApiStability.Experimental
 object RowKeyFormatCache {
-  val rowKeyFormatCache = new mutable.HashMap[KijiURI, EntityIdFactory]()
+  val rowKeyFormatCache = new HashMap[KijiURI, EntityIdFactory]()
 
   /**
    *  Get an EntityIdFactory, either from the cache or by opening a Kiji table, if
@@ -70,8 +70,9 @@ object RowKeyFormatCache {
               table.getLayout()
             }
           }
-      rowKeyFormatCache(tableUri) = EntityIdFactory.getFactory(tableLayout)
-      rowKeyFormatCache(tableUri)
+      val factory = EntityIdFactory.getFactory(tableLayout)
+      rowKeyFormatCache(tableUri) = factory
+      factory
     }
   }
 }

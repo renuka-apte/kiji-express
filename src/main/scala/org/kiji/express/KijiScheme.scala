@@ -23,7 +23,6 @@ import java.io.InvalidClassException
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
-import scala.Some
 
 import cascading.flow.FlowProcess
 import cascading.scheme.Scheme
@@ -472,7 +471,6 @@ private[express] object KijiScheme {
     // Get the entityId.
     val entityId: EntityId = output.getObject(entityIdField).asInstanceOf[EntityId]
 
-
     // Get a timestamp to write the values to, if it was specified by the user.
     val timestamp: Long = timestampField match {
       case Some(field) => {
@@ -482,27 +480,27 @@ private[express] object KijiScheme {
     }
 
     iterator
-      .filter { field => field.toString != entityIdField  }
-      .filter { field => field.toString != timestampField.getOrElse(Symbol("")).name }
-      .foreach { fieldName =>
-      columns(fieldName.toString()) match {
-        case ColumnFamily(family, _) => {
-          // TODO CHOP-56 Design putTuple semantics for map type column families
-          throw new UnsupportedOperationException("Writing to a column family without a "
-              + "qualifier is not supported.")
+        .filter { field => field.toString != entityIdField  }
+        .filter { field => field.toString != timestampField.getOrElse(Symbol("")).name }
+        .foreach { fieldName =>
+          columns(fieldName.toString()) match {
+            case ColumnFamily(family, _) => {
+              // TODO CHOP-56 Design putTuple semantics for map type column families
+              throw new UnsupportedOperationException("Writing to a column family without a "
+                  + "qualifier is not supported.")
+            }
+            case QualifiedColumn(family, qualifier, _) => {
+              val kijiCol = new KijiColumnName(family, qualifier)
+              val value = output.getObject(fieldName.toString())
+              writer.put(
+                  entityId.getEntityId(),
+                  family,
+                  qualifier,
+                  timestamp,
+                  convertScalaTypes(value, layout.getSchema(kijiCol)))
+            }
+          }
         }
-        case QualifiedColumn(family, qualifier, _) => {
-          val kijiCol = new KijiColumnName(family, qualifier)
-          val value = output.getObject(fieldName.toString())
-          writer.put(
-              entityId.getEntityId(),
-              family,
-              qualifier,
-              timestamp,
-              convertScalaTypes(value, layout.getSchema(kijiCol)))
-        }
-      }
-    }
   }
 
   /**

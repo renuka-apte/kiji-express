@@ -20,6 +20,7 @@
 package org.kiji.express
 
 import java.lang.IllegalStateException
+
 import scala.collection.JavaConverters._
 
 import org.kiji.schema.{EntityId => JEntityId}
@@ -36,11 +37,15 @@ import org.kiji.schema.KijiURI
  * Users can retrieve the index'th element of an EntityId (0-based), as follows:
  * EntityId(index)
  *
+ * @param tableUriString is the string representation of a [[org.kiji.schema.KijiURI]]
+ *                       for the table this EntityId is associated with.
+ * @param hbaseEntityId is the Hbase encoding for this EntityId.
  * @param components is a variable number of objects that compose this EntityId.
  */
-final case class EntityId private(tableUriString: String,
-      hbaseEntityId: Array[Byte],
-      components: Any*){
+final case class EntityId private(
+    tableUriString: String,
+    private[express] val hbaseEntityId: Array[Byte],
+    components: Any*){
   /**
    * Define when two EntityIds are equal.
    *
@@ -50,11 +55,7 @@ final case class EntityId private(tableUriString: String,
   override def equals(obj: Any): Boolean = {
     obj match {
       case eid: EntityId => {
-        if (hbaseEntityId.deep == eid.hbaseEntityId.deep) {
-          true
-        } else {
-          false
-        }
+        hbaseEntityId.deep == eid.hbaseEntityId.deep
       }
       case _ => false
     }
@@ -77,7 +78,7 @@ final case class EntityId private(tableUriString: String,
    *
    * @return the Java EntityId.
    */
-  def getEntityId(): JEntityId = {
+  private[express] def getEntityId(): JEntityId = {
     val eidFactory = RowKeyFormatCache.getFactory(KijiURI.newBuilder(tableUriString).build())
     val javaComponents: java.util.List[Object] = components.toList
       .map { elem => KijiScheme.convertScalaTypes(elem, null) }
@@ -104,6 +105,9 @@ object EntityId{
         .toList
         .map { elem => KijiScheme.convertJavaTypes(elem) }
     } catch {
+      // this is an exception thrown when we try to access components of an entityId
+      // which has materialization suppressed. E.g. Hashed EntityIds. So we are unable
+      // to retrieve components, but the behavior is legal.
       case ise: IllegalStateException => null
     }
     EntityId(tableUri.toString,
@@ -117,7 +121,7 @@ object EntityId{
    * @return an Express EntityId.
    */
   def apply(tableUri: KijiURI)(components: Any*): EntityId = {
-    if ((components.size == 1) && (components.isInstanceOf[JEntityId])) {
+    if ((components.size == 1) && (components(0).isInstanceOf[JEntityId])) {
       throw new IllegalArgumentException("Trying to create scala EntityId using"
         + " a Java EntityId as component. You probably want to use EntityId(KijiURI, JEntityId) "
         + "for doing this.")
@@ -126,7 +130,8 @@ object EntityId{
     val javaComponents: java.util.List[Object] = components.toList
         .map { elem => KijiScheme.convertScalaTypes(elem, null) }
         .asJava
-    EntityId(tableUri.toString,
+    EntityId(
+        tableUri.toString,
         jEntityIdFactory.getEntityId(javaComponents).getHBaseRowKey,
         components:_*)
   }

@@ -182,7 +182,11 @@ private[express] class LocalKijiScheme(
       // Get the current row.
       val row: KijiRowData = context.iterator.next()
       val result: Option[Tuple] =
-          KijiScheme.rowToTuple(columns, getSourceFields, timestampField, row,
+          KijiScheme.rowToTuple(
+              columns,
+              getSourceFields,
+              timestampField,
+              row,
               context.tableUriString)
 
       // If no fields were missing, set the result tuple and return from this method.

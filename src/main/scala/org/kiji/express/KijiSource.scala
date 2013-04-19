@@ -49,7 +49,6 @@ import org.kiji.annotations.ApiAudience
 import org.kiji.annotations.ApiStability
 import org.kiji.express.Resources._
 import org.kiji.mapreduce.framework.KijiConfKeys
-import org.kiji.schema.{EntityId => JEntityId, _}
 import org.kiji.schema.Kiji
 import org.kiji.schema.KijiDataRequest
 import org.kiji.schema.KijiRowData
