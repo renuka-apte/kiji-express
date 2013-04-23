@@ -26,6 +26,7 @@ import org.kiji.schema.EntityIdFactory
 import org.kiji.schema.Kiji
 import org.kiji.schema.KijiTable
 import org.kiji.schema.KijiURI
+import org.slf4j.{LoggerFactory, Logger}
 
 /**
  * EntityIdFactoryCache performs the operation of getting the EntityIdFactory for a Kiji
@@ -36,7 +37,9 @@ import org.kiji.schema.KijiURI
 @ApiAudience.Private
 @ApiStability.Experimental
 object EntityIdFactoryCache {
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
   private def getFactoryFromKiji(tableUri: KijiURI): EntityIdFactory = {
+    logger.debug("Hit Kiji")
     val tableLayout =
       doAndRelease(Kiji.Factory.open(tableUri)) { kiji: Kiji =>
         doAndRelease(kiji.openTable(tableUri.getTable())) { table: KijiTable =>

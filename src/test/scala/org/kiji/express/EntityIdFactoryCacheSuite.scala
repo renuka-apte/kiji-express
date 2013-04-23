@@ -49,5 +49,10 @@ class EntityIdFactoryCacheSuite extends KijiSuite {
     // which means we were returned the right EID factory.
     val eid = eidFactory.getEntityId(components)
     assert(components == eid.getComponents)
+
+    val eidFactoryCached = EntityIdFactoryCache.getFactory(uri)
+    println(eidFactory)
+    println(eidFactoryCached)
+    assert(eidFactory == eidFactoryCached)
   }
 }
