@@ -22,8 +22,36 @@
  *
  */
 protocol ModelingSPIRecords {
+  /**
+   * A specification of the extract and score phases for model SPI.
+   */
   record ModelPipeline {
+    /** User specified shorthand identifier for this particular model pipeline. */
+    string model_pipeline_name;
 
+    /**
+     * User specified version number for this particular model pipeline. This is
+     * a required field where the input is required to be of the form [0-9]+(\.[0-9]+)*
+     */
+    string model_pipeline_version;
+
+    /**
+     * Fully qualified class name that corresponds to the class provided by the user,
+     * that implements the extractor trait.
+     */
+    string extract_class;
+
+    /**
+     * Fully qualified class name that corresponds to the class provided by the user,
+     * that implements the scorer trait.
+     */
+    string score_class;
+
+    /**
+     * Unique identifier for this model pipeline specification. The current version
+     * is model-pipeline-0.1.0.
+     */
+    string protocol_version;
   }
 
   /** Runtime resource bindings for a model pipeline. */
