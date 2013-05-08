@@ -25,7 +25,7 @@ protocol ModelingSPIRecords {
   /**
    * A specification of the extract and score phases for model SPI.
    */
-  record ModelPipeline {
+  record AvroModelPipeline {
     /** User specified shorthand identifier for this particular model pipeline. */
     string model_pipeline_name;
 
