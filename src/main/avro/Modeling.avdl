@@ -26,9 +26,111 @@ protocol ModelingSPIRecords {
 
   }
 
+  /** Runtime resource bindings for a model pipeline. */
   record PipelineRunProfile {
+    /** User specified shorthand identifier for this pipeline run profile. */
+    string run_profile_name;
 
+    /**  User specified version number for this particular pipeline run profile. */
+    string run_profile_version;
+
+    /** Path in the local file system to JSON file specifying the Model Pipeline. */
+    string model_pipeline_path;
+
+    /** Unique identifier for this pipeline run profile specification. */
+    string protocol_version = 0.1.0;
+
+    /** Runtime bindings for data sources used in the extract phase. */
+    ExtractRunProfile extract_run_profile;
+
+    /** Runtime bindings for data sources used in the score phase. */
+    ScoreRunProfile score_run_profile;
   }
+
+  /** Runtime resource bindings for the extract phase. */
+  record ExtractRunProfile {
+    /**
+     * Describes a request for columns of data to read from a Kiji table and field names these
+     * columns should be mapped onto in a tuple for the extract phase.
+     */
+    DataRequest data_request;
+
+    /** An array of KVStores to needed during the extract phase. */
+    array<KVStores> kv_stores;
+  }
+
+  /** Runtime resource bindings for the score phase. */
+  record ScoreRunProfile {
+    /**
+     * Describes a request for columns of data to read from a Kiji table and field names these
+     * columns should be mapped onto in a tuple for the score phase.
+     */
+    DataRequest data_request;
+
+    /** An array of KVStores to needed during the score phase. */
+    array<KVStores> kv_stores;
+  }
+
+  /**
+   * Describes a request for columns of data to read from a Kiji table and field names these
+   * columns should be mapped onto in a tuple for the score phase.
+   */
+  record DataRequest {
+    /** The smallest timestamp of cells to return, inclusive. */
+    long min_time_range;
+
+    /** The largest timestamp of cells to return, exclusive. */
+    long max_time_range;
+
+    /** An array of column level data request specifications and field name to data bindings. */
+    array<ColumnsDef> columns_def;
+  }
+
+  /** Column level data request specifications and field name to data bindings. */
+  record ColumnsDef {
+    /** The name of the field to return the requested data in. */
+    string field_name;
+
+    /** The name of the column to request data from, eg "info:foo" */
+    string column_name;
+
+    /** Maximum number of the most recent versions of a particular column to return. */
+    int max_versions = 1;
+
+    /** A filter to attach to each column. */
+    Filter filter;
+
+    /** The maximum number of cells per page. The default is zero, which corresponds to paging not
+     * being enabled.
+     */
+    int page-size = 0;
+  }
+
+  /** A specification of a filter and all parameters needed to instantiate it.*/
+  record Filter {
+    /** Fully qualified class name of the filter to be used. */
+    string class;
+
+    /** Other properties that may need to be specified in order to instantiate that filter. */
+    Properties properties;
+  }
+
+  /** A specification of all the resources needed to surface data from a backing store.*/
+  record KVStores {
+    /** Fully qualified class of KVStoreReader implementation to use. */
+    string reader_class;
+    /** User specified shorthand identifier for a key value store.*/
+    string name;
+    /** Other properties that may be needed to instantiate and configure a kv store reader. */
+    Properties properties;
+  }
+
+  /** Arbitrary name-value pairs.*/
+  record Properties {
+    /** An identifier for a property.*/
+    string name;
+    /** The value for the associated property. */
+    string value;
   }
 
 }
