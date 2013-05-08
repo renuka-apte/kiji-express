@@ -19,6 +19,8 @@
 
 package org.kiji.express.modeling
 
+import scala.io.Source
+
 import org.kiji.schema.util.FromJson
 import org.kiji.schema.util.ToJson
 
@@ -34,7 +36,7 @@ object ModelPipeline {
         && avroModelPipeline.getModelPipelineVersion.matches("[0-9]+(.[0-9]+)*")
         && avroModelPipeline.getProtocolVersion.matches("model-pipeline-0.1.0")
         && Class.forName(avroModelPipeline.getExtractClass).isInstanceOf[Extractor]
-        && Class.forName(avroModelPipeline.getScoreClass).isInstanceOf[Scorer])
+        && Class.forName(avroModelPipeline.getScoreClass).isInstanceOf[Scorer[Any]])
   }
 
   def apply(jsonString: String): ModelPipeline = {
@@ -44,5 +46,9 @@ object ModelPipeline {
       .asInstanceOf[AvroModelPipeline]
     require(isValidModelPipeline(avroModelPipeline))
     ModelPipeline(avroModelPipeline)
+  }
+
+  def apply(jsonSource: Source): ModelPipeline = {
+    ModelPipeline(jsonSource.mkString)
   }
 }
