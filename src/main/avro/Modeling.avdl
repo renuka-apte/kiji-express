@@ -234,33 +234,120 @@ protocol Modeling {
   }
 
   /**
+   * Configuration necessary to use a Kiji table as a data source.
+   */
+  record AvroKijiInputSpec {
+    /**
+     * Kiji URI addressing the table that this input spec will use. Required.
+     */
+    string table_uri;
+
+    /**
+     * Request describing the input columns required by this input spec.
+     */
+    AvroDataRequest data_request;
+
+    /**
+     * Associations between field names and column names. Required.
+     */
+    array<AvroFieldBinding> field_bindings;
+  }
+
+  /**
+   * Configuration necessary to use a Kiji table as a data sink.
+   */
+  record AvroKijiOutputSpec {
+    /**
+     * Kiji URI addressing the table that this output spec will use. Required.
+     */
+    string table_uri;
+
+    /**
+     * Associations between field names and column names. Required.
+     */
+    array<AvroFieldBinding> field_bindings;
+  }
+
+  /**
+   * Represents the configuration for an input data source.
+   */
+  record AvroInputSpec {
+    /**
+     * Identifies the type of input spec being used. Currently supported:
+     *  - KIJI
+     */
+    string spec_type;
+
+    // TODO(EXP-161): Accept inputs from multiple source types.
+    /**
+     * Configuration for this input spec.
+     */
+    union{AvroKijiInputSpec} configuration;
+  }
+
+  /**
+   * Represents the configuration for an output data source.
+   */
+  record AvroOutputSpec {
+    /**
+     * Identifies the type of output spec being used. Currently supported:
+     *  - KIJI
+     */
+    string spec_type;
+
+    // TODO(EXP-161): Accept inputs from multiple source types.
+    /**
+     * Configuration for this output spec.
+     */
+    union{AvroKijiOutputSpec} configuration;
+  }
+
+  /**
    * Runtime resource bindings for the prepare phase.
    *
    * Note to developers: Please increment the 'protocol_version' field in AvroModelEnvironment when
    *     modifying this record.
    */
   record AvroPrepareEnvironment {
-     /**
-      * Describes a request for columns of data to read from a Kiji table. Required.
-      * TODO(EXP-161): Accept inputs from multiple source types.
-      */
-     AvroDataRequest data_request;
+    /**
+     * Defines input data sources that the prepare phase uses.
+     */
+    map<AvroInputSpec> input_specs;
 
     /**
-     * The KVStores needed during the extract phase. The default value of this field is the empty
+     * Defines output data sources that the prepare phase uses.
+     */
+    map<AvroOutputSpec> output_specs;
+
+    /**
+     * The KVStores needed during the prepare phase. The default value of this field is the empty
      * list.
      */
     array<AvroKVStore> kv_stores = [];
+  }
+
+  /**
+   * Runtime resource bindings for the train phase.
+   *
+   * Note to developers: Please increment the 'protocol_version' field in AvroModelEnvironment when
+   *     modifying this record.
+   */
+  record AvroTrainEnvironment {
+    /**
+     * Defines input data sources that the prepare phase uses.
+     */
+    map<AvroInputSpec> input_specs;
 
     /**
-     * Associations between field names and column names. Required.
+     * Defines output data sources that the prepare phase uses.
      */
-    array<AvroFieldBinding> field_bindings;
+    map<AvroOutputSpec> output_specs;
 
     /**
-     * A column name to write the output of the score phase to. Required.
+     * The KVStores needed during the train phase. The default value of this field is the empty
+     * list.
      */
-    string output_column;
+    array<AvroKVStore> kv_stores = [];
   }
 
   /**
@@ -334,6 +421,11 @@ protocol Modeling {
      * Runtime bindings for data sources used in the prepare phase. Potentially null.
      */
     union { null, AvroPrepareEnvironment } prepare_environment = null;
+
+    /**
+     * Runtime bindings for data sources used in the train phase. Potentially null.
+     */
+    union { null, AvroTrainEnvironment } train_environment = null;
 
     /**
      * Runtime bindings for data sources used in the extract phase. Potentially null.
