@@ -65,7 +65,7 @@ final case class KijiOutputSpec(
 
     AvroOutputSpec
         .newBuilder()
-        .setSpecType("KIJI")
+        .setSpecType(KijiOutputSpec.SPEC_TYPE)
         .setConfiguration(avroKijiOutputSpec)
         .build()
   }
@@ -75,6 +75,9 @@ final case class KijiOutputSpec(
  * The companion object to KijiOutputSpec for factory methods.
  */
 object KijiOutputSpec {
+  /** String identifying a KijiInputSpec. */
+  val SPEC_TYPE: String = "KIJI"
+
   /**
    * Converts an Avro KijiOutputSpec specification into a KijiOutputSpec case class.
    *

@@ -379,6 +379,7 @@ object ModelEnvironment {
                   "Unsupported InputSpec type: %s".format(specType))
             }
           }
+          .toMap
 
       val outputSpecs = prepare
           .getOutputSpecs
@@ -402,11 +403,69 @@ object ModelEnvironment {
                 "Unsupported OutputSpec type: %s".format(specType))
             }
           }
-
+          .toMap
       new PrepareEnvironment(
+        inputSpecs = inputSpecs,
+        outputSpecs = outputSpecs,
+        kvstores = prepare.getKvStores
+          .asScala
+          .map { avro => KVStore(avro) })
+    }
+
+      // Load the trainers's model environment.
+    val trainEnvironment = trainAvro.map { train =>
+      val inputSpecs = train
+          .getInputSpecs
+          .asScala
+          .mapValues { spec: AvroInputSpec =>
+            val specType: String = spec.getSpecType
+            val configuration: AnyRef = spec.getConfiguration
+
+            specType match {
+              case KijiInputSpec.SPEC_TYPE => {
+                configuration match {
+                  case kijiConfiguration: AvroKijiInputSpec => KijiInputSpec(kijiConfiguration)
+                      .asInstanceOf[InputSpec]
+                  case _ => throw new ValidationException(
+                      "Spec type: %s does not match the provided configuration %s."
+                      .format(specType, configuration))
+                }
+              }
+              // TODO(EXP-161): Accept inputs from multiple source types.
+              case _ => throw new ValidationException(
+                  "Unsupported InputSpec type: %s".format(specType))
+            }
+          }
+          .toMap
+
+      val outputSpecs = train
+          .getOutputSpecs
+          .asScala
+          .mapValues { spec: AvroOutputSpec =>
+            val specType: String = spec.getSpecType
+            val configuration: AnyRef = spec.getConfiguration
+
+            specType match {
+              case KijiOutputSpec.SPEC_TYPE => {
+                configuration match {
+                  case kijiConfiguration: AvroKijiOutputSpec => KijiOutputSpec(kijiConfiguration)
+                      .asInstanceOf[OutputSpec]
+                  case _ => throw new ValidationException(
+                      "Spec type: %s does not match the provided configuration %s."
+                      .format(specType, configuration))
+                }
+              }
+              // TODO(EXP-161): Accept outputs from multiple source types.
+              case _ => throw new ValidationException(
+                  "Unsupported OutputSpec type: %s".format(specType))
+            }
+          }
+          .toMap
+
+      new TrainEnvironment(
           inputSpecs = inputSpecs,
           outputSpecs = outputSpecs,
-          kvstores = prepare.getKvStores
+          kvstores = train.getKvStores
               .asScala
               .map { avro => KVStore(avro) })
     }
