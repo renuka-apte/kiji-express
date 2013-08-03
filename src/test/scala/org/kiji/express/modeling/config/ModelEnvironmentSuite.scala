@@ -109,6 +109,7 @@ class ModelEnvironmentSuite extends FunSuite {
       "1.0.0",
       "kiji://myuri",
       None,
+      None,
       extractEnv,
       scoreEnv)
 
@@ -144,8 +145,26 @@ class ModelEnvironmentSuite extends FunSuite {
     val dataRequest: ExpressDataRequest = new ExpressDataRequest(0, 38475687,
       new ExpressColumnRequest("info:in", 3, None) :: Nil)
 
-    // Prepare, extract and score environments to use in tests.
-    val prepareEnv = PrepareEnvironment(dataRequest, Seq(), Seq(), "col:out")
+    val inputSpec = new KijiInputSpec(
+        "kiji://.env/default/table",
+        dataRequest,
+        Seq(FieldBinding("tuplename", "info:storefieldname"))
+    )
+    val outputSpec = new KijiOutputSpec(
+        "kiji://.env/default/table",
+        Seq(FieldBinding("tuplename", "info:storefieldname"))
+    )
+    // Prepare, extract, train and score environments to use in tests.
+    val prepareEnv = PrepareEnvironment(
+        Map("myinput" -> inputSpec),
+        Map("myoutput" -> outputSpec),
+        Seq(KVStore("AVRO_KV", "storename", Map("path" -> "/some/great/path")))
+    )
+    val trainEnv = TrainEnvironment(
+      Map("myinput" -> inputSpec),
+      Map("myoutput" -> outputSpec),
+      Seq(KVStore("AVRO_KV", "storename", Map("path" -> "/some/great/path")))
+    )
     val extractEnv = ExtractEnvironment(
       dataRequest,
       Seq(FieldBinding("tuplename", "info:storefieldname")),
@@ -160,6 +179,7 @@ class ModelEnvironmentSuite extends FunSuite {
       "1.0.0",
       "kiji://myuri",
       Some(prepareEnv),
+      Some(trainEnv),
       extractEnv,
       scoreEnv)
     val jsonModelEnv: String = modelEnv.toJson()
@@ -237,6 +257,7 @@ class ModelEnvironmentSuite extends FunSuite {
       "myname",
       "1.0.0",
       "kiji://myuri",
+      None,
       None,
       extractEnv,
       scoreEnv)

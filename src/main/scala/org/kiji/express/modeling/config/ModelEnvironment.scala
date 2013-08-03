@@ -404,6 +404,7 @@ object ModelEnvironment {
             }
           }
           .toMap
+
       new PrepareEnvironment(
         inputSpecs = inputSpecs,
         outputSpecs = outputSpecs,
@@ -631,6 +632,26 @@ object ModelEnvironment {
   }
 
   /**
+   * Verifies that the given sequence of FieldBindings is valid with respect to the field names and
+   * column names contained therein.
+   *
+   * @param fieldBindings
+   * @return
+   */
+  def validateKijiInputOutputFieldBindings(fieldBindings: Seq[FieldBinding]):
+      Seq[Option[ValidationException]] = {
+    val fieldNames: Seq[String] = fieldBindings.map {
+      fieldBinding: FieldBinding => fieldBinding.tupleFieldName
+    }
+    val columnNames: Seq[String] = fieldBindings.map {
+      fieldBinding: FieldBinding => fieldBinding.storeFieldName
+    }
+    columnNames.map {
+      columnName: String => validateKijiColumnName(columnName)
+    } ++ Seq(validateFieldNames(fieldNames), validateColumnNames(columnNames))
+  }
+
+    /**
    * Verifies that a model environments's prepare phase is valid.
    *
    * @param prepareEnv to validate.
@@ -638,19 +659,36 @@ object ModelEnvironment {
    *     prepare phase.
    */
   def validatePrepareEnv(prepareEnv: PrepareEnvironment): Seq[Option[ValidationException]] = {
-    val fieldNames: Seq[String] = prepareEnv.fieldBindings.map {
-      fieldBinding: FieldBinding => fieldBinding.tupleFieldName
+    val inputFieldBindingExcep = prepareEnv.inputSpecs.mapValues {
+      inputSpec: InputSpec => inputSpec match {
+        case kijiInputSpec: KijiInputSpec => {
+          validateKijiInputOutputFieldBindings(kijiInputSpec.fieldBindings) ++
+              validateDataRequest(kijiInputSpec.dataRequest)
+        }
+        // TODO(EXP-161): Accept inputs from multiple source types.
+        case _ => throw new ValidationException(
+          "Unsupported InputSpec type: %s".format(inputSpec.getClass))
+      }
     }
-    val columnNames: Seq[String] = prepareEnv.fieldBindings.map {
-      fieldBinding: FieldBinding => fieldBinding.storeFieldName
+    .flatMap(_._2)
+    .toSeq
+
+    val outputFieldBindingExcep = prepareEnv.outputSpecs.mapValues {
+      outputSpec: OutputSpec => outputSpec match {
+        case kijiOutputSpec: KijiOutputSpec => {
+          validateKijiInputOutputFieldBindings(kijiOutputSpec.fieldBindings)
+        }
+        // TODO(EXP-161): Accept outputs from multiple source types.
+        case _ => throw new ValidationException(
+          "Unsupported OutputSpec type: %s".format(outputSpec.getClass))
+      }
     }
-    val fieldBindingExcep = Seq(validateFieldNames(fieldNames), validateColumnNames(columnNames))
+    .flatMap(_._2)
+    .toSeq
+
     val kvStoreExcep = validateKvStores(prepareEnv.kvstores)
-    val dataReqExcep = validateDataRequest(prepareEnv.dataRequest)
 
-    val colNameExcep = Seq(validateKijiColumnName(prepareEnv.outputColumn))
-
-    fieldBindingExcep ++ kvStoreExcep ++ dataReqExcep ++ colNameExcep
+    outputFieldBindingExcep ++ inputFieldBindingExcep ++ kvStoreExcep
   }
 
   /**
