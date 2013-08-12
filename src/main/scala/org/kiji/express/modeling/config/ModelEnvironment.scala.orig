@@ -137,7 +137,12 @@ final class ModelEnvironment private[express] (
     val version: String,
     val prepareEnvironment: Option[PrepareEnvironment],
     val trainEnvironment: Option[TrainEnvironment],
+<<<<<<< HEAD
+    val extractEnvironment: Option[ExtractEnvironment],
     val scoreEnvironment: Option[ScoreEnvironment],
+=======
+    val scoreEnvironment: ScoreEnvironment,
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
     private[express] val protocolVersion: ProtocolVersion =
         ModelEnvironment.CURRENT_MODEL_DEF_VER) {
   // Ensure that all fields set for this model environment are valid.
@@ -181,23 +186,38 @@ final class ModelEnvironment private[express] (
           .build()
     }
 
-    // Build an AvroScoreEnvironment record.
-    val avroScoreEnvironment: Option[AvroScoreEnvironment] = scoreEnvironment.map { env =>
-      val inputConfig: AvroInputSpec = env
-          .inputConfig
-          .toAvroInputSpec
-      val outputConfig: AvroOutputSpec = env
-          .outputConfig
-          .toAvroOutputSpec
-      AvroScoreEnvironment
+<<<<<<< HEAD
+    // Build an AvroExtractEnvironment record.
+    val avroExtractEnvironment: Option[AvroExtractEnvironment] = extractEnvironment.map { env =>
+      AvroExtractEnvironment
           .newBuilder()
-          .setInputConfig(inputConfig)
-          .setOutputConfig(outputConfig)
+          .setFieldBindings(env.fieldBindings
+              .map { fieldBinding => fieldBinding.toAvroFieldBinding }.asJava)
+          .setDataRequest(env.dataRequest.toAvro)
           .setKvStores(env.kvstores.map { kvstore => kvstore.toAvroKVStore }.asJava)
           .build()
     }
 
+    // Build an AvroScoreEnvironment record.
+    val avroScoreEnvironment: Option[AvroScoreEnvironment] = scoreEnvironment.map { env =>
+      AvroScoreEnvironment
+          .newBuilder()
+          .setKvStores(env.kvstores.map { kvstore => kvstore.toAvroKVStore }.asJava)
+          .setOutputColumn(env.outputColumn)
+          .build()
+    }
+=======
+    // Build an AvroScoreEnvironment record.
+    val avroScoreEnvironment: AvroScoreEnvironment = AvroScoreEnvironment
+        .newBuilder()
+        .setInputConfig(scoreEnvironment.inputConfig.toAvroInputSpec)
+        .setKvStores(scoreEnvironment.kvstores.map { storeSpec => storeSpec.toAvroKVStore }.asJava)
+        .setOutputConfig(scoreEnvironment.outputConfig.toAvroOutputSpec)
+        .build()
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
+
     // Build an AvroModelEnvironment record.
+    // scalastyle:off null
     val environment: AvroModelEnvironment = AvroModelEnvironment
         .newBuilder()
         .setName(name)
@@ -205,8 +225,14 @@ final class ModelEnvironment private[express] (
         .setProtocolVersion(protocolVersion.toString)
         .setPrepareEnvironment(avroPrepareEnvironment.getOrElse(null))
         .setTrainEnvironment(avroTrainEnvironment.getOrElse(null))
+<<<<<<< HEAD
+        .setExtractEnvironment(avroExtractEnvironment.getOrElse(null))
         .setScoreEnvironment(avroScoreEnvironment.getOrElse(null))
+=======
+        .setScoreEnvironment(avroScoreEnvironment)
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
         .build()
+    // scalastyle:on null
 
     ToJson.toAvroJsonString(environment)
   }
@@ -228,7 +254,12 @@ final class ModelEnvironment private[express] (
       version: String = this.version,
       prepareEnvironment: Option[PrepareEnvironment] = this.prepareEnvironment,
       trainEnvironment: Option[TrainEnvironment] = this.trainEnvironment,
+<<<<<<< HEAD
+      extractEnvironment: Option[ExtractEnvironment] = this.extractEnvironment,
       scoreEnvironment: Option[ScoreEnvironment] = this.scoreEnvironment): ModelEnvironment = {
+=======
+      scoreEnvironment: ScoreEnvironment = this.scoreEnvironment): ModelEnvironment = {
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
     new ModelEnvironment(
         name,
         version,
@@ -297,7 +328,12 @@ object ModelEnvironment {
       version: String,
       prepareEnvironment: Option[PrepareEnvironment],
       trainEnvironment: Option[TrainEnvironment],
+<<<<<<< HEAD
+      extractEnvironment: Option[ExtractEnvironment],
       scoreEnvironment: Option[ScoreEnvironment]): ModelEnvironment = {
+=======
+      scoreEnvironment: ScoreEnvironment): ModelEnvironment = {
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
     new ModelEnvironment(
         name,
         version,
@@ -358,7 +394,12 @@ object ModelEnvironment {
         .parse(avroModelEnvironment.getProtocolVersion)
     val prepareAvro = Option(avroModelEnvironment.getPrepareEnvironment)
     val trainAvro = Option(avroModelEnvironment.getTrainEnvironment)
+<<<<<<< HEAD
+    val extractAvro = Option(avroModelEnvironment.getExtractEnvironment)
     val scoreAvro = Option(avroModelEnvironment.getScoreEnvironment)
+=======
+    val scoreAvro = avroModelEnvironment.getScoreEnvironment
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
 
     // Load the preparer's model environment.
     val prepareEnvironment = prepareAvro.map { prepare =>
@@ -373,7 +414,7 @@ object ModelEnvironment {
           .map { avro => KVStore(avro) })
     }
 
-      // Load the trainers's model environment.
+    // Load the trainers's model environment.
     val trainEnvironment = trainAvro.map { train =>
       val inputConfig = avroInputSpecToInputSpec(train.getInputConfig)
       val outputConfig =  avroOutputSpecToOutputSpec(train.getOutputConfig)
@@ -386,18 +427,36 @@ object ModelEnvironment {
               .map { avro => KVStore(avro) })
     }
 
+<<<<<<< HEAD
+    // Load the extractor's model environment.
+    val extractEnvironment = extractAvro.map { extract =>
+      new ExtractEnvironment(
+        dataRequest = ExpressDataRequest(extract.getDataRequest),
+        fieldBindings = extract.getFieldBindings
+            .asScala.map { avro => FieldBinding(avro) },
+        kvstores = extract.getKvStores
+            .asScala.map { avro => KVStore(avro) }
+      )
+    }
+
     // Load the scorer's model environment.
     val scoreEnvironment = scoreAvro.map { score =>
-      val inputConfig = avroInputSpecToInputSpec(score.getInputConfig)
-      val outputConfig =  avroOutputSpecToOutputSpec(score.getOutputConfig)
-
       new ScoreEnvironment(
-          inputConfig = inputConfig,
-          outputConfig = outputConfig,
-          kvstores = score.getKvStores
-              .asScala
-              .map { avro => KVStore(avro) })
+        outputColumn = score.getOutputColumn,
+        kvstores = score.getKvStores
+            .asScala.map { avro => KVStore(avro) }
+      )
     }
+=======
+    // Load the scorer's model environment.
+    val inputConfig = avroInputSpecToInputSpec(scoreAvro.getInputConfig)
+    val outputConfig = avroOutputSpecToOutputSpec(scoreAvro.getOutputConfig)
+    val scoreEnvironment = new ScoreEnvironment(
+      inputConfig = inputConfig,
+      outputConfig = outputConfig,
+      kvstores = avroModelEnvironment.getScoreEnvironment.getKvStores
+            .asScala.map { avro => KVStore(avro) })
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
 
     // Build a model environment.
     new ModelEnvironment(
@@ -441,7 +500,7 @@ object ModelEnvironment {
         .foreach { columnSpec: ColumnSpec =>
           val name = new KijiColumnName(columnSpec.getName())
           val maxVersions = columnSpec.getMaxVersions()
-          if (columnSpec.getFilter != null) {
+          if (Option(columnSpec.getFilter).isDefined) {
             val filter = ExpressDataRequest
                 .filterFromAvro(columnSpec.getFilter)
                 .getKijiColumnFilter()
@@ -476,9 +535,16 @@ object ModelEnvironment {
     val trainErrors = environment.trainEnvironment.map { env =>
       validateTrainEnv(env)
     }.flatten
+<<<<<<< HEAD
+    val extractErrors = environment.extractEnvironment.map { env =>
+      validateExtractEnv(env)
+    }.flatten
     val scoreErrors = environment.scoreEnvironment.map { env =>
       validateScoreEnv(env)
     }.flatten
+=======
+    val scoreErrors = validateScoreEnv(environment.scoreEnvironment)
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
 
     // Throw an exception if there were any validation errors.
     val allErrors = baseErrors ++ prepareErrors ++ trainErrors ++ scoreErrors
@@ -606,7 +672,7 @@ object ModelEnvironment {
   }
 
   /**
-   * Verifies that a model environments's prepare phase is valid.
+   * Verifies that a model environment's prepare phase is valid.
    *
    * @param prepareEnv to validate.
    * @return an optional ValidationException if there are errors encountered while validating the
@@ -623,7 +689,7 @@ object ModelEnvironment {
   }
 
   /**
-   * Verifies that a model environments's train phase is valid.
+   * Verifies that a model environment's train phase is valid.
    *
    * @param trainEnv to validate.
    * @return an optional ValidationException if there are errors encountered while validating the
@@ -636,11 +702,36 @@ object ModelEnvironment {
 
     val kvStoreExcep = validateKvStores(trainEnv.kvstores)
 
-    outputConfigExcep ++ inputConfigExcep ++ kvStoreExcep
+<<<<<<< HEAD
+    outputFieldBindingExcep ++ inputFieldBindingExcep ++ kvStoreExcep
   }
 
   /**
-   * Verifies that a model environments's score phase is valid.
+   * Verifies that a model environment's extract phase is valid.
+   *
+   * @param extractEnv to validate.
+   * @return an optional ValidationException if there are errors encountered while validating the
+   *     extract phase.
+   */
+  def validateExtractEnv(extractEnv: ExtractEnvironment): Seq[Option[ValidationException]] = {
+    val fieldNames: Seq[String] = extractEnv.fieldBindings.map {
+      fieldBinding: FieldBinding => fieldBinding.tupleFieldName
+    }
+    val columnNames: Seq[String] = extractEnv.fieldBindings.map {
+      fieldBinding: FieldBinding => fieldBinding.storeFieldName
+    }
+    val fieldBindingExcep = Seq(validateFieldNames(fieldNames), validateColumnNames(columnNames))
+    val kvStoreExcep = validateKvStores(extractEnv.kvstores)
+    val dataReqExcep = validateDataRequest(extractEnv.dataRequest)
+
+    fieldBindingExcep ++ kvStoreExcep ++ dataReqExcep
+=======
+    outputConfigExcep ++ inputConfigExcep ++ kvStoreExcep
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
+  }
+
+  /**
+   * Verifies that a model environment's score phase is valid.
    *
    * @param scoreEnv to validate.
    * @return an optional ValidationException if there are errors encountered while validating the

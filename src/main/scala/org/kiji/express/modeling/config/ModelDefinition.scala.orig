@@ -26,8 +26,7 @@ import com.google.common.base.Objects
 
 import org.kiji.annotations.ApiAudience
 import org.kiji.annotations.ApiStability
-import org.kiji.express.avro.AvroPhaseSpec
-import org.kiji.express.avro.AvroModelDefinition
+import org.kiji.express.avro.{AvroPhaseSpec, AvroModelDefinition}
 import org.kiji.express.modeling.Extractor
 import org.kiji.express.modeling.Preparer
 import org.kiji.express.modeling.Scorer
@@ -81,8 +80,13 @@ import org.kiji.schema.util.ToJson
  * @param preparerClass to be used in the prepare phase of the model definition. Optional.
  * @param trainExtractor is the extractor class that should be used for the train phase. Optional.
  * @param trainerClass to be used in the train phase of the model definition. Optional.
+<<<<<<< HEAD
+ * @param extractorClass to be used in the extract phase of the model definition. Optional.
+ * @param scorerClass to be used in the score phase of the model definition. Optional.
+=======
  * @param scoreExtractor is the extractor class that should be used for the score phase. Optional.
  * @param scorerClass to be used in the score phase of the model definition.
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
  * @param protocolVersion this model definition was written for.
  */
 @ApiAudience.Public
@@ -94,8 +98,13 @@ final class ModelDefinition private[express] (
     val preparerClass: Option[java.lang.Class[_ <: Preparer]],
     val trainExtractor: Option[java.lang.Class[_ <: Extractor]],
     val trainerClass: Option[java.lang.Class[_ <: Trainer]],
-    val scoreExtractor: Option[java.lang.Class[_ <: Extractor]],
+<<<<<<< HEAD
+    val extractorClass: Option[java.lang.Class[_ <: Extractor]],
     val scorerClass: Option[java.lang.Class[_ <: Scorer]],
+=======
+    val scoreExtractor: Option[java.lang.Class[_ <: Extractor]],
+    val scorerClass: java.lang.Class[_ <: Scorer],
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
     private[express] val protocolVersion: ProtocolVersion =
         ModelDefinition.CURRENT_MODEL_DEF_VER) {
   // Ensure that all fields set for this model definition are valid.
@@ -108,6 +117,9 @@ final class ModelDefinition private[express] (
    */
   def toJson(): String = {
     // Build an AvroModelDefinition record.
+<<<<<<< HEAD
+    // scalastyle:off null
+=======
     val avroPreparer = preparerClass.map { pclass => AvroPhaseSpec
         .newBuilder()
         .setExtractorClass(prepareExtractor.map {_.getName} .getOrElse(null))
@@ -120,21 +132,34 @@ final class ModelDefinition private[express] (
       .setPhaseClass(tclass.getName)
       .build() }.getOrElse(null)
 
-    val avroScorer = scorerClass.map { sclass => AvroPhaseSpec
+    /*val avroTrainer = AvroPhaseSpec
+      .newBuilder()
+      .setExtractorClass(trainExtractor.map {_.getName} .getOrElse(null))
+      .setPhaseClass(trainerClass.map {_.getName} .getOrElse(null))
+      .build()*/
+
+    val avroScorer = AvroPhaseSpec
       .newBuilder()
       .setExtractorClass(scoreExtractor.map {_.getName} .getOrElse(null))
-      .setPhaseClass(sclass.getName)
-      .build() }.getOrElse(null)
+      .setPhaseClass(scorerClass.getName)
+      .build()
 
-	// scalastyle:off null
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
     val definition: AvroModelDefinition = AvroModelDefinition
         .newBuilder()
         .setName(name)
         .setVersion(version)
         .setProtocolVersion(protocolVersion.toString)
+<<<<<<< HEAD
+        .setPreparerClass(preparerClass.map { _.getName } .getOrElse(null))
+        .setTrainerClass(trainerClass.map { _.getName } .getOrElse(null))
+        .setExtractorClass(extractorClass.map { _.getName } .getOrElse(null))
+        .setScorerClass(scorerClass.map { _.getName } .getOrElse(null))
+=======
         .setPreparer(avroPreparer)
         .setTrainer(avroTrainer)
         .setScorer(avroScorer)
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
         .build()
     // scalastyle:on null
 
@@ -164,8 +189,13 @@ final class ModelDefinition private[express] (
       preparer: Option[Class[_ <: Preparer]] = this.preparerClass,
       trainExtractor: Option[Class[_ <: Extractor]] = this.trainExtractor,
       trainer: Option[Class[_ <: Trainer]] = this.trainerClass,
-      scoreExtractor: Option[Class[_ <: Extractor]] = this.scoreExtractor,
+<<<<<<< HEAD
+      extractor: Option[Class[_ <: Extractor]] = this.extractorClass,
       scorer: Option[Class[_ <: Scorer]] = this.scorerClass): ModelDefinition = {
+    new ModelDefinition(name, version, preparer, trainer, extractor, scorer, this.protocolVersion)
+=======
+      scoreExtractor: Option[Class[_ <: Extractor]] = this.scoreExtractor,
+      scorer: Class[_ <: Scorer] = this.scorerClass): ModelDefinition = {
     new ModelDefinition(
         name,
         version,
@@ -176,6 +206,7 @@ final class ModelDefinition private[express] (
         scoreExtractor,
         scorer,
         this.protocolVersion)
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
   }
 
   override def equals(other: Any): Boolean = {
@@ -248,8 +279,13 @@ object ModelDefinition {
       preparer: Option[Class[_ <: Preparer]] = None,
       trainExtractor: Option[Class[_ <: Extractor]] = None,
       trainer: Option[Class[_ <: Trainer]] = None,
-      scoreExtractor: Option[Class[_ <: Extractor]] = None,
+<<<<<<< HEAD
+      extractor: Option[Class[_ <: Extractor]] = None,
       scorer: Option[Class[_ <: Scorer]] = None): ModelDefinition = {
+=======
+      scoreExtractor: Option[Class[_ <: Extractor]] = None,
+      scorer: Class[_ <: Scorer]): ModelDefinition = {
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
     new ModelDefinition(
         name = name,
         version = version,
@@ -344,6 +380,21 @@ object ModelDefinition {
         phase = classOf[Trainer])
     }
 
+<<<<<<< HEAD
+    // Attempt to load the Extractor class.
+    val extractorClassName: Option[String] = Option(avroModelDefinition.getExtractorClass)
+    val extractor: Option[Class[Extractor]] = extractorClassName.map { className: String =>
+      getClassForPhase[Extractor](
+        phaseImplName = className,
+        phase = classOf[Extractor])
+    }
+
+    // Attempt to load the Scorer class.
+    val scorerClassName: Option[String] = Option(avroModelDefinition.getScorerClass)
+    val scorer: Option[Class[Scorer]] = scorerClassName.map { className: String =>
+      getClassForPhase[Scorer](
+        phaseImplName = className,
+=======
     val trainExtractorClassName: Option[String] = avroTrainerOption match {
       case None => None
       case Some(phaseSpec) => Option(phaseSpec.getExtractorClass)
@@ -355,18 +406,14 @@ object ModelDefinition {
     }
 
     // Attempt to load the Scorer class and corresponding Extractor.
-    val avroScorerOption = Option(avroModelDefinition.getScorer)
-    val scorerClassName: Option[String] = avroScorerOption.map(_.getPhaseClass)
-    val scorer: Option[Class[Scorer]] = scorerClassName.map { className: String =>
-      getClassForPhase[Scorer](
-        phaseImplName = className,
+    val scorer: Class[Scorer] = getClassForPhase[Scorer](
+        phaseImplName = avroModelDefinition.getScorer.getPhaseClass,
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
         phase = classOf[Scorer])
     }
 
-    val scoreExtractorClassName: Option[String] = avroScorerOption match {
-      case None => None
-      case Some(phaseSpec) => Option(phaseSpec.getExtractorClass)
-    }
+    val scoreExtractorClassName: Option[String] = Option(avroModelDefinition.getScorer
+      .getExtractorClass)
     val scoreExtractor: Option[Class[Extractor]] = scoreExtractorClassName
       .map { className: String => getClassForPhase[Extractor](
       phaseImplName = className,
@@ -410,7 +457,12 @@ object ModelDefinition {
    *     validating the provided model definition.
    */
   def validateModelDefinition(definition: ModelDefinition) {
+<<<<<<< HEAD
+    val extractorClass: Option[Class[_]] = definition.extractorClass
     val scorerClass: Option[Class[_]] = definition.scorerClass
+=======
+    val scorerClass: Class[_] = definition.scorerClass
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
 
     val validationErrors: Seq[Option[ValidationException]] = Seq(
         validateProtocolVersion(definition.protocolVersion),
@@ -418,8 +470,39 @@ object ModelDefinition {
         validateVersion(definition.version)
     )
 
+<<<<<<< HEAD
+    if ((extractorClass.isDefined) && (scorerClass.isDefined)) {
+      val extractorFields: Set[String] = extractorOutputFieldNames(extractorClass.get)
+      val fieldMappingErrors: Seq[Option[ValidationException]] =
+          scorerInputFieldNames(scorerClass.get).map { inputFieldName: String =>
+            validateScorerInputInExtractorOutputs(inputFieldName, extractorFields)
+          }
+      aggregateErrors(validationErrors, fieldMappingErrors)
+
+    } else {
+      val fieldMappingErrors = Seq(None)
+      aggregateErrors(validationErrors, fieldMappingErrors)
+    }
+  }
+
+  /**
+   * Collects ValidationExceptions thrown by validation procedures and throws an aggregate
+   * sequence of exceptions up the stack if necessary.
+   *
+   * @param validationErrors A sequence of optional ValidationException's from preliminary
+   *     validation of the model definition.
+   * @param fieldMappingErrors A sequence of optional ValidationException's from validating
+   *     the correct field mappings between the extractor and the scorer.
+   */
+  private[express] def aggregateErrors(
+      validationErrors: Seq[Option[ValidationException]],
+      fieldMappingErrors: Seq[Option[ValidationException]]) {
+    val allErrors = validationErrors ++ fieldMappingErrors
+    val causes = allErrors.flatten
+=======
     // Throw an exception if there were any validation errors.
     val causes = validationErrors.flatten
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
     if (!causes.isEmpty) {
       throw new ModelDefinitionValidationException(causes, VALIDATION_MESSAGE)
     }
@@ -483,4 +566,76 @@ object ModelDefinition {
       None
     }
   }
+<<<<<<< HEAD
+
+  /**
+  * Provides a set of the names of output fields used by an extractor class.
+  *
+  * @param extractorClass from which to extract output fields.
+  * @return a set of the extractor's output field names.
+  */
+  private[express] def extractorOutputFieldNames(extractorClass: Class[_]): Set[String] = {
+    val extractor = extractorClass.newInstance()
+    val extractorOutputFields: Fields = extractor
+        .asInstanceOf[Extractor]
+        .extractFn
+        .fields
+        ._2
+    val extractorInputFields: Fields = extractor
+        .asInstanceOf[Extractor]
+        .extractFn
+        .fields
+        ._1
+
+    if (!extractorOutputFields.isResults) {
+      Tuples
+          .fieldsToSeq(extractorOutputFields)
+          .toSet
+    }
+    else {
+      // If Results is true, use the extractor's input fields as output.
+      Tuples
+          .fieldsToSeq(extractorInputFields)
+          .toSet
+    }
+  }
+
+  /**
+  * Provides a set of the names of input fields used by a scorer class.
+  *
+  * @param scorerClass from which to extract input fields.
+  * @return a sequence of the scorer's input field names.
+  */
+  private[express] def scorerInputFieldNames(scorerClass: Class[_]): Seq[String] = {
+    val scorer = scorerClass.newInstance()
+    val scorerInputFields: Fields = scorer
+        .asInstanceOf[Scorer]
+        .scoreFn
+        .fields
+
+    Tuples
+        .fieldsToSeq(scorerInputFields)
+  }
+
+  /**
+   * Verifies that a scorer input field also exists in a list of extractor output fields.
+   *
+   * @param scorerInputFieldName to validate.
+   * @param extractorOutputFieldNames to validate.
+   * @return an optional ValidationException if there are errors encountered while validating that
+   * a single scorer input field name exists among the extractor output field names.
+   */
+  private[express] def validateScorerInputInExtractorOutputs(
+      scorerInputFieldName: String, extractorOutputFieldNames: Set[String]):
+      Option[ValidationException] = {
+    if (!extractorOutputFieldNames.contains(scorerInputFieldName)
+        && !extractorOutputFieldNames.isEmpty) {
+      Some(new ValidationException("Scorer's input field \'" + scorerInputFieldName +
+          "\' does not match any extractor output fields."))
+    } else {
+      None
+    }
+  }
+=======
+>>>>>>> b710cf6... EXP-160: Refactor extractors.
 }
