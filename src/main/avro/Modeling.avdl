@@ -1,5 +1,5 @@
 /**
- * (c) Copyright 2012 WibiData, Inc.
+ * (c) Copyright 2013 WibiData, Inc.
  *
  * See the NOTICE file distributed with this work for additional
  * information regarding copyright ownership.
@@ -27,8 +27,7 @@ protocol Modeling {
   /**
    * A specification of the computational phases defining a model workflow.
    *
-   * Currently this consists of four phases:
-   * - Extract
+   * Currently this consists of three phases:
    * - Prepare
    * - Train
    * - Score
@@ -66,7 +65,7 @@ protocol Modeling {
     /**
      * Unique identifier for this model definition. The current version is model_definition-0.1.0.
      */
-    string protocol_version = "model_definition-0.1.0";
+    string protocol_version = "model_definition-0.2.0";
   }
 
   /**
@@ -390,7 +389,7 @@ protocol Modeling {
      * Note that at present, there can only be a single field binding in AvroKijiOutputSpec, because
      * the score phase supports writing to only a single column.
      */
-    AvroKijiOutputSpec output_config;
+    AvroOutputSpec output_config;
   }
 
   /**

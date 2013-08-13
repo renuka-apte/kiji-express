@@ -77,7 +77,6 @@ import org.kiji.schema.util.ToJson
  * @param version of the model definition.
  * @param preparerClass to be used in the prepare phase of the model definition. Optional.
  * @param trainerClass to be used in the train phase of the model definition. Optional.
- * @param extractorClass to be used in the extract phase of the model definition.
  * @param scorerClass to be used in the score phase of the model definition.
  * @param protocolVersion this model definition was written for.
  */
@@ -88,7 +87,6 @@ final class ModelDefinition private[express] (
     val version: String,
     val preparerClass: Option[java.lang.Class[_ <: Preparer]],
     val trainerClass: Option[java.lang.Class[_ <: Trainer]],
-    val extractorClass: java.lang.Class[_ <: Extractor],
     val scorerClass: java.lang.Class[_ <: Scorer],
     private[express] val protocolVersion: ProtocolVersion =
         ModelDefinition.CURRENT_MODEL_DEF_VER) {
@@ -109,7 +107,6 @@ final class ModelDefinition private[express] (
         .setProtocolVersion(protocolVersion.toString)
         .setPreparerClass(preparerClass.map { _.getName } .getOrElse(null))
         .setTrainerClass(trainerClass.map { _.getName } .getOrElse { null })
-        .setExtractorClass(extractorClass.getName)
         .setScorerClass(scorerClass.getName)
         .build()
 
@@ -126,7 +123,6 @@ final class ModelDefinition private[express] (
    * @param version of the model definition.
    * @param preparer used by the model definition.
    * @param trainer used by the model definition.
-   * @param extractor used by the model definition.
    * @param scorer used by the model definition.
    * @return a new model definition using the settings specified to this method.
    */
@@ -135,9 +131,8 @@ final class ModelDefinition private[express] (
       version: String = this.version,
       preparer: Option[Class[_ <: Preparer]] = this.preparerClass,
       trainer: Option[Class[_ <: Trainer]] = this.trainerClass,
-      extractor: Class[_ <: Extractor] = this.extractorClass,
       scorer: Class[_ <: Scorer] = this.scorerClass): ModelDefinition = {
-    new ModelDefinition(name, version, preparer, trainer, extractor, scorer, this.protocolVersion)
+    new ModelDefinition(name, version, preparer, trainer, scorer, this.protocolVersion)
   }
 
   override def equals(other: Any): Boolean = {
@@ -147,7 +142,6 @@ final class ModelDefinition private[express] (
             version == definition.version &&
             preparerClass == definition.preparerClass &&
             trainerClass == definition.trainerClass &&
-            extractorClass == definition.extractorClass &&
             scorerClass == definition.scorerClass &&
             protocolVersion == definition.protocolVersion
       }
@@ -161,7 +155,6 @@ final class ModelDefinition private[express] (
           version,
           preparerClass,
           trainerClass,
-          extractorClass,
           scorerClass,
           protocolVersion)
 }
@@ -209,7 +202,6 @@ object ModelDefinition {
         version = version,
         preparerClass = preparer,
         trainerClass = trainer,
-        extractorClass = extractor,
         scorerClass = scorer,
         protocolVersion = ModelDefinition.CURRENT_MODEL_DEF_VER)
   }
@@ -284,11 +276,6 @@ object ModelDefinition {
         phase = classOf[Trainer])
     }
 
-    // Attempt to load the Extractor class.
-    val extractor: Class[Extractor] = getClassForPhase[Extractor](
-        phaseImplName = avroModelDefinition.getExtractorClass,
-        phase = classOf[Extractor])
-
     // Attempt to load the Scorer class.
     val scorer: Class[Scorer] = getClassForPhase[Scorer](
         phaseImplName = avroModelDefinition.getScorerClass,
@@ -300,7 +287,6 @@ object ModelDefinition {
         version = avroModelDefinition.getVersion,
         preparerClass = preparer,
         trainerClass = trainer,
-        extractorClass = extractor,
         scorerClass = scorer,
         protocolVersion = protocol)
   }
@@ -329,7 +315,6 @@ object ModelDefinition {
    *     validating the provided model definition.
    */
   def validateModelDefinition(definition: ModelDefinition) {
-    val extractorClass: Class[_] = definition.extractorClass
     val scorerClass: Class[_] = definition.scorerClass
 
     val validationErrors: Seq[Option[ValidationException]] = Seq(
@@ -338,14 +323,8 @@ object ModelDefinition {
         validateVersion(definition.version)
     )
 
-    val extractorFields: Set[String] = extractorOutputFieldNames(extractorClass)
-    val fieldMappingErrors: Seq[Option[ValidationException]] =
-      scorerInputFieldNames(scorerClass).map { inputFieldName: String =>
-        validateScorerInputInExtractorOutputs(inputFieldName, extractorFields)
-      }
-
     // Throw an exception if there were any validation errors.
-    val allErrors = validationErrors ++ fieldMappingErrors
+    val allErrors = validationErrors
     val causes = allErrors.flatten
     if (!causes.isEmpty) {
       throw new ModelDefinitionValidationException(causes, VALIDATION_MESSAGE)
@@ -406,77 +385,6 @@ object ModelDefinition {
       val error = "Model definition version strings must match the regex " +
           "\"%s\" (1.0.0 would be valid).".format(VERSION_REGEX)
       Some(new ValidationException(error))
-    } else {
-      None
-    }
-  }
-
-  /**
-  * Provides a set of the names of output fields used by an extractor class.
-  * This is a helper function for validateScorerInputInExtractorOutputs.
-  *
-  * @param extractorClass from which to extract output fields.
-  * @return a set of the extractor's output field names.
-  */
-  private[express] def extractorOutputFieldNames(extractorClass: Class[_]): Set[String] = {
-    val extractor = extractorClass.newInstance()
-    val extractorOutputFields: Fields = extractor
-        .asInstanceOf[Extractor]
-        .extractFn
-        .fields
-        ._2
-    val extractorInputFields: Fields = extractor
-        .asInstanceOf[Extractor]
-        .extractFn
-        .fields
-        ._1
-
-    if (!extractorOutputFields.isResults) {
-      Tuples
-          .fieldsToSeq(extractorOutputFields)
-          .toSet
-    }
-    else {
-      // If Results is true, use the extractor's input fields as output.
-      Tuples
-          .fieldsToSeq(extractorInputFields)
-          .toSet
-    }
-  }
-
-  /**
-  * Provides a set of the names of input fields used by a scorer class.
-  * This is a helper function for validateScorerInputInExtractorOutputs.
-  *
-  * @param scorerClass from which to extract input fields.
-  * @return a sequence of the scorer's input field names.
-  */
-  private[express] def scorerInputFieldNames(scorerClass: Class[_]): Seq[String] = {
-    val scorer = scorerClass.newInstance()
-    val scorerInputFields: Fields = scorer
-        .asInstanceOf[Scorer]
-        .scoreFn
-        .fields
-
-    Tuples
-        .fieldsToSeq(scorerInputFields)
-  }
-
-  /**
-   * Verifies that a scorer input field also exists in a list of extractor output fields.
-   *
-   * @param scorerInputFieldName to validate.
-   * @param extractorOutputFieldNames to validate.
-   * @return an optional ValidationException if there are errors encountered while validating that
-   * a single scorer input field name exists among the extractor output field names.
-   */
-  private[express] def validateScorerInputInExtractorOutputs(
-      scorerInputFieldName: String, extractorOutputFieldNames: Set[String]):
-      Option[ValidationException] = {
-    if (!extractorOutputFieldNames.contains(scorerInputFieldName)
-        && !extractorOutputFieldNames.isEmpty) {
-      Some(new ValidationException("Scorer's input field \'" + scorerInputFieldName +
-          "\' does not match any extractor output fields."))
     } else {
       None
     }

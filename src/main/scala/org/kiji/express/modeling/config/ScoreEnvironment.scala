@@ -27,18 +27,25 @@ import com.google.common.base.Objects
 /**
  * A specification of the runtime bindings for data sources required in the score phase of a model.
  *
- * @param outputColumn to write scores to.
+ * @param inputConfig defines the input data source name for this phase.
+ * @param extract_class is the fully qualified class name of the class that will manipulate the
+ *                      input sources in this phase.
+ * @param outputConfig defines the output data sink name.
  * @param kvstores for usage during the score phase.
  */
 @ApiAudience.Public
 @ApiStability.Experimental
 final class ScoreEnvironment private[express] (
-    val outputColumn: String,
+    val inputConfig: InputSpec,
+    val extract_class: String,
+    val outputConfig: OutputSpec,
     val kvstores: Seq[KVStore]) {
   override def equals(other: Any): Boolean = {
     other match {
       case environment: ScoreEnvironment => {
-        outputColumn == environment.outputColumn &&
+        inputConfig == environment.inputConfig &&
+            extract_class == environment.extract_class &&
+            outputConfig == environment.outputConfig &&
             kvstores == environment.kvstores
       }
       case _ => false
@@ -47,7 +54,9 @@ final class ScoreEnvironment private[express] (
 
   override def hashCode(): Int =
       Objects.hashCode(
-          outputColumn,
+          inputConfig,
+          extract_class,
+          outputConfig,
           kvstores)
 }
 
@@ -59,11 +68,22 @@ object ScoreEnvironment {
    * Creates a ScoreEnvironment, which is a specification of the runtime bindings for data sources
    * required in the score phase of a model.
    *
-   * @param outputColumn to write scores to.
+   * @param inputConfig defines an input data source.
+   * @param extract_class is the fully qualified class name of the class that will manipulate the
+   *                      input sources in this phase.
+   * @param outputConfig defines the output Kiji column for this phase.
    * @param kvstores is the specification of the kv stores for usage during the score phase.
    * @return a ScoreEnvironment with the specified settings.
    */
-  def apply(outputColumn: String, kvstores: Seq[KVStore]): ScoreEnvironment = {
-    new ScoreEnvironment(outputColumn, kvstores)
+  def apply(
+      inputConfig: InputSpec,
+      extract_class: String,
+      outputConfig: OutputSpec,
+      kvstores: Seq[KVStore]): ScoreEnvironment = {
+    new ScoreEnvironment(
+        inputConfig,
+        extract_class,
+        outputConfig,
+        kvstores)
   }
 }
