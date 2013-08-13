@@ -57,14 +57,6 @@ protocol Modeling {
      */
     union{null, string} trainer_class = null;
 
-    // TODO(EXP-54): Make the default value of this
-    //     'org.kiji.express.modeling.lib.IdentityExtractor'.
-    /**
-     * Fully qualified class name of the class to use in the extract phase. This class must
-     * implement the extractor trait.
-     */
-    string extractor_class;
-
     /**
      * Fully qualified class name of the class to use in the score phase. This class must implement
      * the score trait.
@@ -319,12 +311,18 @@ protocol Modeling {
     /**
      * Defines input data sources that the prepare phase uses.
      */
-    map<AvroInputSpec> input_specs;
+    AvroInputSpec input_config;
+
+    /**
+     * Fully qualified class name of the class that will manipulate the input sources in this phase.
+     * This class must implement the extractor trait.
+     */
+    string extractor_class = "org.kiji.express.modeling.lib.IdentityExtractor";
 
     /**
      * Defines output data sources that the prepare phase uses.
      */
-    map<AvroOutputSpec> output_specs;
+    AvroOutputSpec output_config;
 
     /**
      * The KVStores needed during the prepare phase. The default value of this field is the empty
@@ -343,42 +341,24 @@ protocol Modeling {
     /**
      * Defines input data sources that the prepare phase uses.
      */
-    map<AvroInputSpec> input_specs;
+    AvroInputSpec input_config;
+
+    /**
+     * Fully qualified class name of the class that will manipulate the input sources in this phase.
+     * This class must implement the extractor trait.
+     */
+    string extractor_class = "org.kiji.express.modeling.lib.IdentityExtractor";
 
     /**
      * Defines output data sources that the prepare phase uses.
      */
-    map<AvroOutputSpec> output_specs;
+    AvroOutputSpec output_config;
 
     /**
      * The KVStores needed during the train phase. The default value of this field is the empty
      * list.
      */
     array<AvroKVStore> kv_stores = [];
-  }
-
-  /**
-   * Runtime resource bindings for the extract phase.
-   *
-   * Note to developers: Please increment the 'protocol_version' field in AvroModelEnvironment when
-   *     modifying this record.
-   */
-  record AvroExtractEnvironment {
-    /**
-     * Describes a request for columns of data to read from a Kiji table. Required.
-     */
-    AvroDataRequest data_request;
-
-    /**
-     * The KVStores needed during the extract phase. The default value of this field is the empty
-     * list.
-     */
-    array<AvroKVStore> kv_stores = [];
-
-    /**
-     * Associations between field names and column names. Required.
-     */
-    array<AvroFieldBinding> field_bindings;
   }
 
   /**
@@ -389,15 +369,28 @@ protocol Modeling {
    */
   record AvroScoreEnvironment {
     /**
+     * Defines input data sources that the prepare phase uses.
+     */
+    AvroInputSpec input_config;
+
+    /**
+     * Fully qualified class name of the class that will manipulate the input sources in this phase.
+     * This class must implement the extractor trait.
+     */
+    string extractor_class = "org.kiji.express.modeling.lib.IdentityExtractor";
+
+    /**
      * An array of KVStores needed during the score phase. The default value of this field is the
      * empty list.
      */
     array<AvroKVStore> kv_stores = [];
 
     /**
-     * A column name to write the output of the score phase to. Required.
+     * A Kiji column to write the output of the score phase to. Required.
+     * Note that at present, there can only be a single field binding in AvroKijiOutputSpec, because
+     * the score phase supports writing to only a single column.
      */
-    string output_column;
+    AvroKijiOutputSpec output_config;
   }
 
   /**
@@ -420,11 +413,6 @@ protocol Modeling {
     string version;
 
     /**
-     * Kiji URI addressing the table that this model workflow will be run against. Required.
-     */
-    string model_table_uri;
-
-    /**
      * Runtime bindings for data sources used in the prepare phase. Potentially null.
      */
     union { null, AvroPrepareEnvironment } prepare_environment = null;
@@ -433,11 +421,6 @@ protocol Modeling {
      * Runtime bindings for data sources used in the train phase. Potentially null.
      */
     union { null, AvroTrainEnvironment } train_environment = null;
-
-    /**
-     * Runtime bindings for data sources used in the extract phase. Potentially null.
-     */
-    union { null, AvroExtractEnvironment } extract_environment = null;
 
     /**
      * Runtime bindings for data sources used in the score phase. Potentially null.
