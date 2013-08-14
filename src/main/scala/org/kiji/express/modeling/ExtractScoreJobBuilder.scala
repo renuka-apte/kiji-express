@@ -24,7 +24,7 @@ import org.apache.hadoop.hbase.HBaseConfiguration
 
 import org.kiji.express.modeling.config.ModelDefinition
 import org.kiji.express.modeling.config.ModelEnvironment
-import org.kiji.express.modeling.framework.ExtractScoreProducer
+import org.kiji.express.modeling.framework.ScoreOnlyProducer
 import org.kiji.mapreduce.KijiMapReduceJob
 import org.kiji.mapreduce.output.MapReduceJobOutputs
 import org.kiji.mapreduce.produce.KijiProduceJobBuilder
@@ -49,14 +49,14 @@ object ExtractScoreJobBuilder {
     val uri = KijiURI.newBuilder(environment.modelTableUri).build()
 
     // Serialize the model configuration objects.
-    conf.set(ExtractScoreProducer.modelDefinitionConfKey, model.toJson())
-    conf.set(ExtractScoreProducer.modelEnvironmentConfKey, environment.toJson())
+    conf.set(ScoreOnlyProducer.modelDefinitionConfKey, model.toJson())
+    conf.set(ScoreOnlyProducer.modelEnvironmentConfKey, environment.toJson())
 
     // Build the produce job.
     KijiProduceJobBuilder.create()
         .withConf(conf)
         .withInputTable(uri)
-        .withProducer(classOf[ExtractScoreProducer])
+        .withProducer(classOf[ScoreOnlyProducer])
         .withOutput(MapReduceJobOutputs.newDirectKijiTableMapReduceJobOutput(uri))
         .build()
   }

@@ -29,8 +29,6 @@ import org.kiji.annotations.Inheritance
  * A specification of the runtime bindings needed in the train phase of a model.
  *
  * @param inputConfig defining a mapping from input data source names to their configurations.
- * @param extract_class is the fully qualified class name of the class that will manipulate the
- *                      input sources in this phase.
  * @param outputConfig defining a mapping from output data sink names to their configurations.
  * @param kvstores for usage during the train phase.
  */
@@ -38,14 +36,12 @@ import org.kiji.annotations.Inheritance
 @ApiStability.Experimental
 final class TrainEnvironment private[express](
     val inputConfig: InputSpec,
-    val extract_class: String,
     val outputConfig: OutputSpec,
     val kvstores: Seq[KVStore]) {
   override def equals(other: Any): Boolean = {
     other match {
       case environment: TrainEnvironment => {
         inputConfig == environment.inputConfig &&
-            extract_class == environment.extract_class &&
             outputConfig == environment.outputConfig &&
             kvstores == environment.kvstores
       }
@@ -56,7 +52,6 @@ final class TrainEnvironment private[express](
   override def hashCode(): Int =
       Objects.hashCode(
           inputConfig,
-          extract_class,
           outputConfig,
           kvstores)
 }
@@ -70,20 +65,16 @@ object TrainEnvironment {
    * the train phase of a model.
    *
    * @param inputConfig defining a mapping from input data source names to their configurations.
-   * @param extract_class is the fully qualified class name of the class that will manipulate the
-   *                      input sources in this phase.
    * @param outputConfig defining a mapping from output data sink names to their configurations.
    * @param kvstores for usage during the train phase.
    * @return an TrainEnvironment with the specified configuration.
    */
   def apply(
       inputConfig: InputSpec,
-      extract_class: String,
       outputConfig: OutputSpec,
       kvstores: Seq[KVStore]): TrainEnvironment = {
     new TrainEnvironment(
         inputConfig,
-        extract_class,
         outputConfig,
         kvstores)
   }

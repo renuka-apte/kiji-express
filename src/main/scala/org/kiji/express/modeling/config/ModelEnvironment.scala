@@ -358,7 +358,6 @@ object ModelEnvironment {
 
       new PrepareEnvironment(
         inputConfig = inputConfig,
-        extract_class = prepare.getExtractorClass,
         outputConfig = outputConfig,
         kvstores = prepare.getKvStores
           .asScala
@@ -372,7 +371,6 @@ object ModelEnvironment {
 
       new TrainEnvironment(
           inputConfig = inputConfig,
-          extract_class = train.getExtractorClass,
           outputConfig = outputConfig,
           kvstores = train.getKvStores
               .asScala
@@ -384,7 +382,6 @@ object ModelEnvironment {
     val outputConfig = avroOutputSpecToOutputSpec(scoreAvro.getOutputConfig)
     val scoreEnvironment = new ScoreEnvironment(
       inputConfig = inputConfig,
-      extract_class = scoreAvro.getExtractorClass,
       outputConfig = outputConfig,
       kvstores = avroModelEnvironment.getScoreEnvironment.getKvStores
             .asScala.map { avro => KVStore(avro) })
@@ -598,21 +595,13 @@ object ModelEnvironment {
    *     prepare phase.
    */
   def validatePrepareEnv(prepareEnv: PrepareEnvironment): Seq[Option[ValidationException]] = {
-    val inputFieldBindingExcep = prepareEnv.inputSpecs.mapValues {
-      inputSpec: InputSpec => validateInputSpec(inputSpec)
-    }
-    .flatMap(_._2)
-    .toSeq
+    val inputConfigExcep = validateInputSpec(prepareEnv.inputConfig)
 
-    val outputFieldBindingExcep = prepareEnv.outputSpecs.mapValues {
-      outputSpec: OutputSpec => validateOutputSpec(outputSpec)
-    }
-    .flatMap(_._2)
-    .toSeq
+    val outputConfigExcep = validateOutputSpec(prepareEnv.outputConfig)
 
     val kvStoreExcep = validateKvStores(prepareEnv.kvstores)
 
-    outputFieldBindingExcep ++ inputFieldBindingExcep ++ kvStoreExcep
+    outputConfigExcep ++ inputConfigExcep ++ kvStoreExcep
   }
 
   /**
@@ -623,36 +612,13 @@ object ModelEnvironment {
    *     prepare phase.
    */
   def validateTrainEnv(trainEnv: TrainEnvironment): Seq[Option[ValidationException]] = {
-    val inputFieldBindingExcep = trainEnv.inputSpecs.mapValues {
-      inputSpec: InputSpec => inputSpec match {
-        case kijiInputSpec: KijiInputSpec => {
-          validateKijiInputOutputFieldBindings(kijiInputSpec.fieldBindings) ++
-            validateDataRequest(kijiInputSpec.dataRequest)
-        }
-        // TODO(EXP-161): Accept inputs from multiple source types.
-        case _ => Seq(Some(new ValidationException(
-          "Unsupported InputSpec type: %s".format(inputSpec.getClass))))
-      }
-    }
-    .flatMap(_._2)
-    .toSeq
+    val inputConfigExcep = validateInputSpec(trainEnv.inputConfig)
 
-    val outputFieldBindingExcep = trainEnv.outputConfig.mapValues {
-      outputSpec: OutputSpec => outputSpec match {
-        case kijiOutputSpec: KijiOutputSpec => {
-          validateKijiInputOutputFieldBindings(kijiOutputSpec.fieldBindings)
-        }
-        // TODO(EXP-161): Accept outputs from multiple source types.
-        case _ => Seq(Some(new ValidationException(
-          "Unsupported OutputSpec type: %s".format(outputSpec.getClass))))
-      }
-    }
-    .flatMap(_._2)
-    .toSeq
+    val outputConfigExcep = validateOutputSpec(trainEnv.outputConfig)
 
     val kvStoreExcep = validateKvStores(trainEnv.kvstores)
 
-    outputFieldBindingExcep ++ inputFieldBindingExcep ++ kvStoreExcep
+    outputConfigExcep ++ inputConfigExcep ++ kvStoreExcep
   }
 
   /**
@@ -663,10 +629,21 @@ object ModelEnvironment {
    *     score phase.
    */
   def validateScoreEnv(scoreEnv: ScoreEnvironment): Seq[Option[ValidationException]] = {
-    val colNameExcep = Seq(validateKijiColumnName(scoreEnv.outputColumn))
+    val inputConfigExcep = validateInputSpec(scoreEnv.inputConfig)
+
+    // For score, we only permit output to a single Kiji column. Hence we need to validate
+    // this as a special case.
+    val outputConfigExcep = scoreEnv.outputConfig match {
+      case scorePhaseOutputSpec: KijiSingleColumnOutputSpec => {
+        Seq(validateKijiColumnName(scorePhaseOutputSpec.outputColumn))
+      }
+      case _ => Seq(Some(new ValidationException(
+        "Unsupported OutputSpec type for Score Phase: %s".format(scoreEnv.outputConfig.getClass))))
+    }
+
     val kvStoreExcep = validateKvStores(scoreEnv.kvstores)
 
-    colNameExcep ++ kvStoreExcep
+    inputConfigExcep ++ outputConfigExcep ++ kvStoreExcep
   }
 
   /**

@@ -28,8 +28,6 @@ import com.google.common.base.Objects
  * A specification of the runtime bindings for data sources required in the score phase of a model.
  *
  * @param inputConfig defines the input data source name for this phase.
- * @param extract_class is the fully qualified class name of the class that will manipulate the
- *                      input sources in this phase.
  * @param outputConfig defines the output data sink name.
  * @param kvstores for usage during the score phase.
  */
@@ -37,14 +35,12 @@ import com.google.common.base.Objects
 @ApiStability.Experimental
 final class ScoreEnvironment private[express] (
     val inputConfig: InputSpec,
-    val extract_class: String,
     val outputConfig: OutputSpec,
     val kvstores: Seq[KVStore]) {
   override def equals(other: Any): Boolean = {
     other match {
       case environment: ScoreEnvironment => {
         inputConfig == environment.inputConfig &&
-            extract_class == environment.extract_class &&
             outputConfig == environment.outputConfig &&
             kvstores == environment.kvstores
       }
@@ -55,7 +51,6 @@ final class ScoreEnvironment private[express] (
   override def hashCode(): Int =
       Objects.hashCode(
           inputConfig,
-          extract_class,
           outputConfig,
           kvstores)
 }
@@ -69,20 +64,16 @@ object ScoreEnvironment {
    * required in the score phase of a model.
    *
    * @param inputConfig defines an input data source.
-   * @param extract_class is the fully qualified class name of the class that will manipulate the
-   *                      input sources in this phase.
    * @param outputConfig defines the output Kiji column for this phase.
    * @param kvstores is the specification of the kv stores for usage during the score phase.
    * @return a ScoreEnvironment with the specified settings.
    */
   def apply(
       inputConfig: InputSpec,
-      extract_class: String,
       outputConfig: OutputSpec,
       kvstores: Seq[KVStore]): ScoreEnvironment = {
     new ScoreEnvironment(
         inputConfig,
-        extract_class,
         outputConfig,
         kvstores)
   }
