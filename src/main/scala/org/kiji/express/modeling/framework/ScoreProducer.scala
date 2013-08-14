@@ -33,9 +33,7 @@ import org.kiji.express.modeling.Extractor
 import org.kiji.express.modeling.KeyValueStore
 import org.kiji.express.modeling.ScoreFn
 import org.kiji.express.modeling.Scorer
-import org.kiji.express.modeling.config.ModelDefinition
-import org.kiji.express.modeling.config.ModelEnvironment
-import org.kiji.express.modeling.config.KVStore
+import org.kiji.express.modeling.config._
 import org.kiji.express.modeling.impl.AvroKVRecordKeyValueStore
 import org.kiji.express.modeling.impl.AvroRecordKeyValueStore
 import org.kiji.express.modeling.impl.KijiTableKeyValueStore
@@ -53,6 +51,9 @@ import org.kiji.schema.KijiColumnName
 import org.kiji.schema.KijiDataRequest
 import org.kiji.schema.KijiRowData
 import org.kiji.schema.KijiURI
+import org.kiji.express.modeling.ExtractFn
+import scala.Some
+import org.kiji.express.modeling.ScoreFn
 
 /**
  * A producer for running [[org.kiji.express.modeling.config.ModelDefinition]]s.
@@ -66,14 +67,14 @@ import org.kiji.schema.KijiURI
  */
 @ApiAudience.Framework
 @ApiStability.Experimental
-final class ScoreOnlyProducer
+final class ScoreProducer
     extends KijiProducer {
   /** The model definition. This variable must be initialized. */
   private[this] var _modelDefinition: Option[ModelDefinition] = None
   private[this] def modelDefinition: ModelDefinition = {
     _modelDefinition.getOrElse {
       throw new IllegalStateException(
-          "ScoreOnlyProducer is missing its model definition. Did setConf get called?")
+          "ScoreProducer is missing its model definition. Did setConf get called?")
     }
   }
 
@@ -82,7 +83,7 @@ final class ScoreOnlyProducer
   private[this] def modelEnvironment: ModelEnvironment = {
     _modelEnvironment.getOrElse {
       throw new IllegalStateException(
-          "ScoreOnlyProducer is missing its run profile. Did setConf get called?")
+          "ScoreProducer is missing its run profile. Did setConf get called?")
     }
   }
 
@@ -91,7 +92,7 @@ final class ScoreOnlyProducer
   private[this] def extractor: Extractor = {
     _extractor.getOrElse {
       throw new IllegalStateException(
-          "ScoreOnlyProducer is missing its extractor. Did setConf get called?")
+          "ScoreProducer is missing its extractor. Did setConf get called?")
     }
   }
 
@@ -100,7 +101,7 @@ final class ScoreOnlyProducer
   private[this] def scorer: Scorer = {
     _scorer.getOrElse {
       throw new IllegalStateException(
-          "ScoreOnlyProducer is missing its scorer. Did setConf get called?")
+          "ScoreProducer is missing its scorer. Did setConf get called?")
     }
   }
 
@@ -118,13 +119,13 @@ final class ScoreOnlyProducer
    * immediately after instantiation.
    *
    * This method loads a [[org.kiji.express.modeling.config.ModelDefinition]] and a
-   * [[org.kiji.express.modeling.config.ModelEnvironment]] for ScoreOnlyProducer to use.
+   * [[org.kiji.express.modeling.config.ModelEnvironment]] for ScoreProducer to use.
    *
    * @param conf object that this producer should use.
    */
   override def setConf(conf: Configuration) {
     // Load model definition.
-    val modelDefinitionJson: String = conf.get(ScoreOnlyProducer.modelDefinitionConfKey)
+    val modelDefinitionJson: String = conf.get(ScoreProducer.modelDefinitionConfKey)
     // scalastyle:off null
     require(
         modelDefinitionJson != null,
@@ -134,7 +135,7 @@ final class ScoreOnlyProducer
     _modelDefinition = Some(modelDefinitionDef)
 
     // Load run profile.
-    val modelEnvironmentJson: String = conf.get(ScoreOnlyProducer.modelEnvironmentConfKey)
+    val modelEnvironmentJson: String = conf.get(ScoreProducer.modelEnvironmentConfKey)
     // scalastyle:off null
     require(
         modelEnvironmentJson != null,
@@ -144,10 +145,11 @@ final class ScoreOnlyProducer
     _modelEnvironment = Some(modelEnvironmentDef)
 
     // Make an instance of each requires phase.
-   /* val extractor = modelDefinitionDef
-        .extractorClass
+    val extractor = modelDefinitionDef
+        .scoreExtractor
+        .get
         .newInstance()
-        .asInstanceOf[Extractor]*/
+        .asInstanceOf[Extractor]
     val scorer = modelDefinitionDef
         .scorerClass
         .newInstance()
@@ -155,9 +157,9 @@ final class ScoreOnlyProducer
     _extractor = Some(extractor)
     _scorer = Some(scorer)
 
-    val uri = KijiURI.newBuilder(modelEnvironmentDef.modelTableUri).build()
-    val columns: Seq[KijiColumnName] = modelEnvironmentDef
-        .extractEnvironment
+    val kijiInputSpec = modelEnvironment.scoreEnvironment.inputConfig.asInstanceOf[KijiInputSpec]
+    val uri = KijiURI.newBuilder(kijiInputSpec.tableUri).build()
+    val columns: Seq[KijiColumnName] = kijiInputSpec
         .dataRequest
         .toKijiDataRequest()
         .getColumns
@@ -183,8 +185,11 @@ final class ScoreOnlyProducer
    * @return a kiji data request.
    */
   override def getDataRequest(): KijiDataRequest = modelEnvironment
-      .extractEnvironment
-      .dataRequest.toKijiDataRequest()
+      .scoreEnvironment
+      .inputConfig
+      .asInstanceOf[KijiInputSpec]
+      .dataRequest
+      .toKijiDataRequest()
 
   /**
    * Returns the name of the column this producer will write to.
@@ -195,6 +200,8 @@ final class ScoreOnlyProducer
    */
   override def getOutputColumn(): String = modelEnvironment
       .scoreEnvironment
+      .outputConfig
+      .asInstanceOf[KijiSingleColumnOutputSpec]
       .outputColumn
 
   /**
@@ -204,38 +211,21 @@ final class ScoreOnlyProducer
    * @return a mapping from kvstore names to opened kvstores.
    */
   override def getRequiredStores(): java.util.Map[String, JKeyValueStore[_, _]] = {
-    // Open the kvstores defined for the extract phase.
-    val extractStoreDefs: Seq[KVStore] = modelEnvironment
-        .extractEnvironment
-        .kvstores
-    val extractStores: Map[String, JKeyValueStore[_, _]] = ScoreOnlyProducer
-        .openJKvstores(extractStoreDefs, getConf(), "extract-")
-
     // Open the kvstores defined for the score phase.
     val scoreStoreDefs: Seq[KVStore] = modelEnvironment
         .scoreEnvironment
         .kvstores
-    val scoreStores: Map[String, JKeyValueStore[_, _]] = ScoreOnlyProducer
+    val scoreStores: Map[String, JKeyValueStore[_, _]] = ScoreProducer
         .openJKvstores(scoreStoreDefs, getConf(), "score-")
-
-    // Combine the opened kvstores.
-    (extractStores ++ scoreStores)
-        .asJava
+    scoreStores.asJava
   }
 
   override def setup(context: KijiContext) {
-    // Setup the extract phase's kvstores.
-    val extractStoreDefs: Seq[KVStore] = modelEnvironment
-        .extractEnvironment
-        .kvstores
-    extractor.kvstores = ScoreOnlyProducer
-        .wrapKvstoreReaders(extractStoreDefs, context, "extract-")
-
     // Setup the score phase's kvstores.
     val scoreStoreDefs: Seq[KVStore] = modelEnvironment
         .scoreEnvironment
         .kvstores
-    scorer.kvstores = ScoreOnlyProducer
+    scorer.kvstores = ScoreProducer
         .wrapKvstoreReaders(scoreStoreDefs, context, "score-")
   }
 
@@ -245,7 +235,9 @@ final class ScoreOnlyProducer
 
     // Setup fields.
     val fieldMapping: Map[String, KijiColumnName] = modelEnvironment
-        .extractEnvironment
+        .scoreEnvironment
+        .inputConfig
+        .asInstanceOf[KijiInputSpec]
         .fieldBindings
         .map { binding =>
           (binding.tupleFieldName, new KijiColumnName(binding.storeFieldName))
@@ -317,7 +309,7 @@ final class ScoreOnlyProducer
   }
 }
 
-object ScoreOnlyProducer {
+object ScoreProducer {
   /**
    * Configuration key addressing the JSON description of a
    * [[org.kiji.express.modeling.config.ModelDefinition]].

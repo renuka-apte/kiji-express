@@ -49,8 +49,8 @@ import org.kiji.schema.layout.KijiTableLayouts
 import org.kiji.schema.util.InstanceBuilder
 
 
-class ExtractScoreJobToolSuite extends KijiSuite {
-  test("ExtractScoreJobTool can run a job.") {
+class ScoreJobToolSuite extends KijiSuite {
+  test("ScoreJobTool can run a job.") {
     val tmpDir: File = Files.createTempDir()
     val modelDefFile: File = new File(tmpDir, "model-def.json")
     val modelEnvFile: File = new File(tmpDir, "model-env.json")
@@ -77,8 +77,8 @@ class ExtractScoreJobToolSuite extends KijiSuite {
         val modelDefinition: ModelDefinition = ModelDefinition(
             name = "test-model-definition",
             version = "1.0",
-            extractor = classOf[ExtractScoreJobToolSuite.DoublingExtractor],
-            scorer = classOf[ExtractScoreJobToolSuite.UpperCaseScorer])
+            extractor = classOf[ScoreJobToolSuite.DoublingExtractor],
+            scorer = classOf[ScoreJobToolSuite.UpperCaseScorer])
         val modelEnvironment: ModelEnvironment = ModelEnvironment(
             name = "test-model-environment",
             version = "1.0",
@@ -102,7 +102,7 @@ class ExtractScoreJobToolSuite extends KijiSuite {
         }
 
         // Run the tool.
-        ExtractScoreJobTool.main(Array(
+        ScoreJobTool.main(Array(
             "--model-def=" + modelDefFile.getAbsolutePath,
             "--model-env=" + modelEnvFile.getAbsolutePath))
 
@@ -129,24 +129,24 @@ class ExtractScoreJobToolSuite extends KijiSuite {
     }
   }
 
-  test("ExtractScoreJobTool validates the --model-def flag.") {
+  test("ScoreJobTool validates the --model-def flag.") {
     val thrown = intercept[IllegalArgumentException] {
-      ExtractScoreJobTool.main(Array("--model-env=/some/path"))
+      ScoreJobTool.main(Array("--model-env=/some/path"))
     }
     assert("requirement failed: Specify the Model Definition to use with" +
       " --model-def=/path/to/model-def.json" === thrown.getMessage)
   }
 
-  test("ExtractScoreJobTool validates the --model-env flag.") {
+  test("ScoreJobTool validates the --model-env flag.") {
     val thrown = intercept[IllegalArgumentException] {
-      ExtractScoreJobTool.main(Array("--model-def=/some/path"))
+      ScoreJobTool.main(Array("--model-def=/some/path"))
     }
     assert("requirement failed: Specify the Model Environment to use with" +
       " --model-env=/path/to/model-env.json" === thrown.getMessage)
   }
 }
 
-object ExtractScoreJobToolSuite {
+object ScoreJobToolSuite {
   class DoublingExtractor extends Extractor {
     override val extractFn = extract('field -> 'feature) { field: KijiSlice[String] =>
       val str: String = field.getFirstValue

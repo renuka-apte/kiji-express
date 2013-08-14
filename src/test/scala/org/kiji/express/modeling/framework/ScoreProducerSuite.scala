@@ -24,7 +24,7 @@ import org.apache.hadoop.fs.Path
 import org.kiji.express.KijiSlice
 import org.kiji.express.KijiSuite
 import org.kiji.express.modeling.Extractor
-import org.kiji.express.modeling.ExtractScoreJobBuilder
+import org.kiji.express.modeling.ScoreProducerJobBuilder
 import org.kiji.express.modeling.KeyValueStore
 import org.kiji.express.modeling.Scorer
 import org.kiji.express.modeling.config._
@@ -44,7 +44,7 @@ import org.kiji.express.modeling.config.FieldBinding
 import org.kiji.express.modeling.config.ExpressColumnRequest
 import org.kiji.express.modeling.config.KVStore
 
-class ExtractScoreProducerSuite
+class ScoreProducerSuite
     extends KijiSuite {
   test("An extract-score produce job can be run over a table.") {
     val testLayout: KijiTableLayout = layout(KijiTableLayouts.SIMPLE_TWO_COLUMNS)
@@ -70,8 +70,8 @@ class ExtractScoreProducerSuite
       val modelDefinition: ModelDefinition = ModelDefinition(
           name = "test-model-definition",
           version = "1.0",
-          extractor = classOf[ExtractScoreProducerSuite.DoublingExtractor],
-          scorer = classOf[ExtractScoreProducerSuite.UpperCaseScorer])
+          extractor = classOf[ScoreProducerSuite.DoublingExtractor],
+          scorer = classOf[ScoreProducerSuite.UpperCaseScorer])
       val modelEnvironment: ModelEnvironment = ModelEnvironment(
           name = "test-model-environment",
           version = "1.0",
@@ -98,7 +98,7 @@ class ExtractScoreProducerSuite
               kvstores = Seq()))
 
       // Build the produce job.
-      val produceJob = ExtractScoreJobBuilder.buildJob(
+      val produceJob = ScoreProducerJobBuilder.buildJob(
           model = modelDefinition,
           environment = modelEnvironment)
 
@@ -147,8 +147,8 @@ class ExtractScoreProducerSuite
       val modelDefinition: ModelDefinition = ModelDefinition(
           name = "test-model-definition",
           version = "1.0",
-          extractor = classOf[ExtractScoreProducerSuite.TwoArgDoublingExtractor],
-          scorer = classOf[ExtractScoreProducerSuite.TwoArgUpperCaseScorer])
+          extractor = classOf[ScoreProducerSuite.TwoArgDoublingExtractor],
+          scorer = classOf[ScoreProducerSuite.TwoArgUpperCaseScorer])
       val modelEnvironment: ModelEnvironment = ModelEnvironment(
           name = "test-model-environment",
           version = "1.0",
@@ -166,7 +166,7 @@ class ExtractScoreProducerSuite
               kvstores = Seq()))
 
       // Build the produce job.
-      val produceJob = ExtractScoreJobBuilder.buildJob(
+      val produceJob = ScoreProducerJobBuilder.buildJob(
           model = modelDefinition,
           environment = modelEnvironment)
 
@@ -216,7 +216,7 @@ class ExtractScoreProducerSuite
           name = "test-model-definition",
           version = "1.0",
           extractor = classOf[FirstValueExtractor],
-          scorer = classOf[ExtractScoreProducerSuite.UpperCaseScorer])
+          scorer = classOf[ScoreProducerSuite.UpperCaseScorer])
       val modelEnvironment: ModelEnvironment = ModelEnvironment(
           name = "test-model-environment",
           version = "1.0",
@@ -233,7 +233,7 @@ class ExtractScoreProducerSuite
               kvstores = Seq()))
 
       // Build the produce job.
-      val produceJob = ExtractScoreJobBuilder.buildJob(
+      val produceJob = ScoreProducerJobBuilder.buildJob(
           model = modelDefinition,
           environment = modelEnvironment)
 
@@ -257,7 +257,7 @@ class ExtractScoreProducerSuite
   }
 }
 
-object ExtractScoreProducerSuite {
+object ScoreProducerSuite {
   class DoublingExtractor extends Extractor {
     override val extractFn = extract('field -> 'feature) { field: KijiSlice[String] =>
       val str: String = field.getFirstValue

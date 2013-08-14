@@ -22,9 +22,8 @@ package org.kiji.express.modeling
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 
-import org.kiji.express.modeling.config.ModelDefinition
-import org.kiji.express.modeling.config.ModelEnvironment
-import org.kiji.express.modeling.framework.ScoreOnlyProducer
+import org.kiji.express.modeling.config.{KijiInputSpec, ModelDefinition, ModelEnvironment}
+import org.kiji.express.modeling.framework.ScoreProducer
 import org.kiji.mapreduce.KijiMapReduceJob
 import org.kiji.mapreduce.output.MapReduceJobOutputs
 import org.kiji.mapreduce.produce.KijiProduceJobBuilder
@@ -34,7 +33,7 @@ import org.kiji.schema.KijiURI
  * Used to build jobs for running the extract and score phases of a model in batch over an entire
  * input table.
  */
-object ExtractScoreJobBuilder {
+object ScoreProducerJobBuilder {
   /**
    * Builds a job for running the extract and score phases of a model in batch over an entire input
    * table.
@@ -46,17 +45,22 @@ object ExtractScoreJobBuilder {
    */
   def buildJob(model: ModelDefinition, environment: ModelEnvironment,
       conf: Configuration = HBaseConfiguration.create()): KijiMapReduceJob = {
-    val uri = KijiURI.newBuilder(environment.modelTableUri).build()
+    val uri = KijiURI.newBuilder(environment
+        .scoreEnvironment
+        .inputConfig
+        .asInstanceOf[KijiInputSpec]
+        .tableUri)
+        .build()
 
     // Serialize the model configuration objects.
-    conf.set(ScoreOnlyProducer.modelDefinitionConfKey, model.toJson())
-    conf.set(ScoreOnlyProducer.modelEnvironmentConfKey, environment.toJson())
+    conf.set(ScoreProducer.modelDefinitionConfKey, model.toJson())
+    conf.set(ScoreProducer.modelEnvironmentConfKey, environment.toJson())
 
     // Build the produce job.
     KijiProduceJobBuilder.create()
         .withConf(conf)
         .withInputTable(uri)
-        .withProducer(classOf[ScoreOnlyProducer])
+        .withProducer(classOf[ScoreProducer])
         .withOutput(MapReduceJobOutputs.newDirectKijiTableMapReduceJobOutput(uri))
         .build()
   }
