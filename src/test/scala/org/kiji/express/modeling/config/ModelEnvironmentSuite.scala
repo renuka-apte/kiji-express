@@ -177,7 +177,7 @@ class ModelEnvironmentSuite extends FunSuite {
     )
     val scoreEnv = ScoreEnvironment(
       inputSpec,
-      outputSpec,
+      scoreOutputSpec,
       Seq(KVStore("KIJI_TABLE", "myname", Map("uri" -> "kiji://.env/default/table",
         "column" -> "info:email"))))
 
@@ -240,7 +240,7 @@ class ModelEnvironmentSuite extends FunSuite {
     }
     assert(thrown.getMessage.contains("*invalid1"))
     assert(thrown.getMessage.contains("*invalid2"))
-    assert(!thrown.getMessage.contains("valid:column"))
+    assert(!thrown.getMessage.contains("validcolumn"))
   }
 
   test("ModelEnvironment validates extract field bindings when programmatically constructed.") {
@@ -497,7 +497,7 @@ class ModelEnvironmentSuite extends FunSuite {
     val expAndFilter: AndFilter = new AndFilter(List(expRegexFilter, expColRangeFilter))
 
     val expectedRequest: ExpressDataRequest = new ExpressDataRequest(0, 38475687,
-        new ExpressColumnRequest("info:in", 3, Some(expAndFilter)) :: Nil)
+        Seq(new ExpressColumnRequest("info:in", 3, Some(expAndFilter))))
 
     assert(expectedRequest === modelEnv
         .scoreEnvironment

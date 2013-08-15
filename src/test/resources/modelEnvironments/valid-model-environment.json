@@ -19,7 +19,7 @@
 {
   "protocol_version":"model_environment-0.2.0",
   "name":"myRunProfile",
-  "version":"2.0.0",
+  "version":"1.0.0",
   "prepare_environment":{
     "org.kiji.express.avro.AvroPrepareEnvironment":{
       "input_config":{

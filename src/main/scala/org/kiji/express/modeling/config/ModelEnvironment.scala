@@ -328,7 +328,8 @@ object ModelEnvironment {
     // TODO(EXP-161): Accept outputs from multiple source types.
     specification match {
       case kijiSpec: AvroKijiOutputSpec => KijiOutputSpec(kijiSpec)
-        .asInstanceOf[OutputSpec]
+      case kijiSingleCol: AvroKijiSingleColumnOutputSpec =>
+          KijiSingleColumnOutputSpec(kijiSingleCol)
       case _ => throw new ValidationException(
         "Unsupported Output Configuration: " + specification.getClass.toString)
     }
@@ -580,6 +581,9 @@ object ModelEnvironment {
     outputSpec match {
       case kijiOutputSpec: KijiOutputSpec => {
         validateKijiInputOutputFieldBindings(kijiOutputSpec.fieldBindings)
+      }
+      case kijiSingleColSpec: KijiSingleColumnOutputSpec => {
+        Seq(validateKijiColumnName(kijiSingleColSpec.outputColumn))
       }
       // TODO(EXP-161): Accept outputs from multiple source types.
       case _ => Seq(Some(new ValidationException(

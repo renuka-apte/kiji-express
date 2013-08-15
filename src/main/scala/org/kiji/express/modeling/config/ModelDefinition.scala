@@ -107,17 +107,23 @@ final class ModelDefinition private[express] (
    */
   def toJson(): String = {
     // Build an AvroModelDefinition record.
-    val avroPreparer = AvroPhaseSpec
+    val avroPreparer = preparerClass.map { pclass => AvroPhaseSpec
         .newBuilder()
         .setExtractorClass(prepareExtractor.map {_.getName} .getOrElse(null))
-        .setPhaseClass(preparerClass.map {_.getName} .getOrElse(null))
-        .build()
+        .setPhaseClass(pclass.getName)
+        .build() }.getOrElse(null)
 
-    val avroTrainer = AvroPhaseSpec
+    val avroTrainer = trainerClass.map { tclass => AvroPhaseSpec
+      .newBuilder()
+      .setExtractorClass(trainExtractor.map {_.getName} .getOrElse(null))
+      .setPhaseClass(tclass.getName)
+      .build() }.getOrElse(null)
+
+    /*val avroTrainer = AvroPhaseSpec
       .newBuilder()
       .setExtractorClass(trainExtractor.map {_.getName} .getOrElse(null))
       .setPhaseClass(trainerClass.map {_.getName} .getOrElse(null))
-      .build()
+      .build()*/
 
     val avroScorer = AvroPhaseSpec
       .newBuilder()
