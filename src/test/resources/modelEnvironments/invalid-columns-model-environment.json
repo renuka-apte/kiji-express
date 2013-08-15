@@ -73,11 +73,17 @@
             "min_timestamp" : 0,
             "max_timestamp" : 38475687,
             "column_definitions" : [ {
-              "name" : "info:in",
+              "name" : "*invalid1",
               "max_versions" : 3,
               "filter" : {
                 "regex" : "foo"
               }
+            }, {
+              "name" : "*invalid2",
+              "max_versions" : 3,
+            }, {
+              "name" : "info:validcolumn",
+              "max_versions" : 3,
             } ]
           },
           "field_bindings" : [ {

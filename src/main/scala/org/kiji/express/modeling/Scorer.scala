@@ -67,8 +67,7 @@ final case class ScoreFn[I, O] (
 trait Scorer
     extends KeyValueStores
     with FieldConversions
-    with TupleConversions
-    with Extractor {
+    with TupleConversions {
   /**
    * Used to define the computation required for the Score phase of the model workflow.
    *

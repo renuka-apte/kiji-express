@@ -3,6 +3,8 @@ package org.kiji.express.modeling.config
 import scala.tools.nsc.io.Path
 import org.scalatest.FunSuite
 import net.liftweb.json._
+import org.kiji.express.util.Resources._
+import scala.Some
 
 /**
  * (c) Copyright 2013 WibiData, Inc.
@@ -24,8 +26,8 @@ import net.liftweb.json._
  */
 
 class JsonWriterSuite extends FunSuite {
-  val validDefinitionLocation: String =
-    "src/test/resources/modelEnvironments/valid-model-environment-0.2.0.json"
+  /*val validDefinitionLocation: String =
+    "src/test/resources/modelEnvironments/valid-model-environment.json"
 
   val filter: ExpressColumnFilter = new RegexQualifierFilter("foo")
   val dataRequest: ExpressDataRequest = new ExpressDataRequest(0, 38475687,
@@ -81,5 +83,24 @@ class JsonWriterSuite extends FunSuite {
     val jsonString: String = Printer.pretty(render(parsedJSON))
     Path(validDefinitionLocation).toFile.writeAll(jsonString)
 
+  } */
+
+  val validDefinitionLocation: String =
+      "src/test/resources/modelDefinitions/valid-model-definition.json"
+
+  val modelDefinition = ModelDefinition(
+    name = "name",
+    version = "1.0.0",
+    prepareExtractor = Some(classOf[ModelDefinitionSuite.MyExtractor]),
+    preparer = Some(classOf[ModelDefinitionSuite.MyPreparer]),
+    trainer = Some(classOf[ModelDefinitionSuite.MyTrainer]),
+    scorer = classOf[ModelDefinitionSuite.MyScorer]
+  )
+
+  test("Write valid model definition") {
+    val parsedJSON = parse(modelDefinition.toJson())
+    val jsonString: String = Printer.pretty(render(parsedJSON))
+    Path(validDefinitionLocation).toFile.writeAll(jsonString)
   }
+
 }

@@ -262,10 +262,10 @@ object ModelEnvironment {
   val MAX_RUN_ENV_VER: ProtocolVersion = ProtocolVersion.parse("model_environment-0.2.0")
 
   /** Minimum model environment version we can recognize. */
-  val MIN_RUN_ENV_VER: ProtocolVersion = ProtocolVersion.parse("model_environment-0.1.0")
+  val MIN_RUN_ENV_VER: ProtocolVersion = ProtocolVersion.parse("model_environment-0.2.0")
 
   /** Current ModelDefinition protocol version. */
-  val CURRENT_MODEL_DEF_VER: ProtocolVersion = ProtocolVersion.parse("model_environment-0.1.0")
+  val CURRENT_MODEL_DEF_VER: ProtocolVersion = ProtocolVersion.parse("model_environment-0.2.0")
 
   /** Regular expression used to validate a model environment version string. */
   val VERSION_REGEX: String = "[0-9]+(.[0-9]+)*"

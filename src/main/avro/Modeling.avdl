@@ -33,7 +33,7 @@ protocol Modeling {
      * Fully qualified class name of the class that will manipulate the input sources in this phase.
      * This class must implement the extractor trait.
      */
-    string extractor_class = "org.kiji.express.modeling.lib.IdentityExtractor";
+    union{null, string} extractor_class = null;
     /**
      * Fully qualified class name of the class to use in this phase. This class must implement the
      * appropriate trait for the phase.
