@@ -25,8 +25,8 @@ import com.google.common.base.Objects
 
 import org.kiji.annotations.ApiAudience
 import org.kiji.annotations.ApiStability
-import org.kiji.express.avro.AvroPhaseSpec
 import org.kiji.express.avro.AvroModelDefinition
+import org.kiji.express.avro.AvroPhaseSpec
 import org.kiji.express.modeling.Extractor
 import org.kiji.express.modeling.Preparer
 import org.kiji.express.modeling.Scorer
@@ -44,12 +44,13 @@ import org.kiji.schema.util.ToJson
  * A ModelDefinition can be created programmatically:
  * {{{
  * val modelDefinition = ModelDefinition(
- *  name = "name",
- *  version = "1.0.0",
- *  prepareExtractor = Some(classOf[ModelDefinitionSuite.MyExtractor]),
- *  preparer = Some(classOf[ModelDefinitionSuite.MyPreparer]),
- *  trainer = Some(classOf[ModelDefinitionSuite.MyTrainer]),
- *  scorer = Some(classOf[ModelDefinitionSuite.MyScorer]))
+ *   name = "name",
+ *   version = "1.0.0",
+ *   prepareExtractor = Some(classOf[MyExtractor]),
+ *   preparer = Some(classOf[MyPreparer]),
+ *   trainer = Some(classOf[MyTrainer]),
+ *   scorer = Some(classOf[MyScorer])
+ * )
  * }}}
  *
  * Alternatively a ModelDefinition can be created from JSON. JSON model specifications should be
@@ -61,21 +62,21 @@ import org.kiji.schema.util.ToJson
  *  "preparer":{
  *    "org.kiji.express.avro.AvroPhaseSpec":{
  *      "extractor_class":{
- *        "string":"org.kiji.express.modeling.config.ModelDefinitionSuite$MyExtractor"
+ *        "string":"org.kiji.express.modeling.config.MyExtractor"
  *      },
- *      "phase_class":"org.kiji.express.modeling.config.ModelDefinitionSuite$MyPreparer"
+ *      "phase_class":"org.kiji.express.modeling.config.MyPreparer"
  *    }
  *  },
  *  "trainer":{
  *    "org.kiji.express.avro.AvroPhaseSpec":{
  *      "extractor_class":null,
- *      "phase_class":"org.kiji.express.modeling.config.ModelDefinitionSuite$MyTrainer"
+ *      "phase_class":"org.kiji.express.modeling.config.MyTrainer"
  *    }
  *  },
  *  "scorer":{
  *    "org.kiji.express.avro.AvroPhaseSpec":{
  *      "extractor_class":null,
- *      "phase_class":"org.kiji.express.modeling.config.ModelDefinitionSuite$MyScorer"
+ *      "phase_class":"org.kiji.express.modeling.config.MyScorer"
  *    }
  *  },
  *  "protocol_version":"model_definition-0.2.0"
@@ -127,23 +128,29 @@ final class ModelDefinition private[express] (
    */
   def toJson(): String = {
     // Build an AvroModelDefinition record.
-    val avroPreparer = preparerClass.map { pclass => AvroPhaseSpec
+    val avroPreparer = preparerClass.map {
+      pclass => AvroPhaseSpec
         .newBuilder()
         .setExtractorClass(prepareExtractor.map {_.getName} .getOrElse(null))
         .setPhaseClass(pclass.getName)
-        .build() }.getOrElse(null)
+        .build()
+    }.getOrElse(null)
 
-    val avroTrainer = trainerClass.map { tclass => AvroPhaseSpec
-      .newBuilder()
-      .setExtractorClass(trainExtractor.map {_.getName} .getOrElse(null))
-      .setPhaseClass(tclass.getName)
-      .build() }.getOrElse(null)
+    val avroTrainer = trainerClass.map {
+      tclass => AvroPhaseSpec
+        .newBuilder()
+        .setExtractorClass(trainExtractor.map {_.getName} .getOrElse(null))
+        .setPhaseClass(tclass.getName)
+        .build()
+    }.getOrElse(null)
 
-    val avroScorer = scorerClass.map { sclass => AvroPhaseSpec
-      .newBuilder()
-      .setExtractorClass(scoreExtractor.map {_.getName} .getOrElse(null))
-      .setPhaseClass(sclass.getName)
-      .build() }.getOrElse(null)
+    val avroScorer = scorerClass.map {
+      sclass => AvroPhaseSpec
+        .newBuilder()
+        .setExtractorClass(scoreExtractor.map {_.getName} .getOrElse(null))
+        .setPhaseClass(sclass.getName)
+        .build()
+    }.getOrElse(null)
 
 	// scalastyle:off null
     val definition: AvroModelDefinition = AvroModelDefinition
@@ -350,8 +357,8 @@ object ModelDefinition {
     }
     val prepareExtractor: Option[Class[Extractor]] = prepareExtractorClassName
         .map { className: String => getClassForPhase[Extractor](
-            phaseImplName = className,
-            phase = classOf[Extractor])
+          phaseImplName = className,
+          phase = classOf[Extractor])
         }
 
     // Attempt to load the Trainer class and corresponding Extractor.
@@ -359,8 +366,8 @@ object ModelDefinition {
     val trainerClassName: Option[String] = avroTrainerOption.map(_.getPhaseClass)
     val trainer: Option[Class[Trainer]] = trainerClassName.map { className: String =>
       getClassForPhase[Trainer](
-        phaseImplName = className,
-        phase = classOf[Trainer])
+          phaseImplName = className,
+          phase = classOf[Trainer])
     }
 
     val trainExtractorClassName: Option[String] = avroTrainerOption match {
@@ -369,8 +376,8 @@ object ModelDefinition {
     }
     val trainExtractor: Option[Class[Extractor]] = trainExtractorClassName
       .map { className: String => getClassForPhase[Extractor](
-      phaseImplName = className,
-      phase = classOf[Extractor])
+        phaseImplName = className,
+        phase = classOf[Extractor])
     }
 
     // Attempt to load the Scorer class and corresponding Extractor.
@@ -378,8 +385,8 @@ object ModelDefinition {
     val scorerClassName: Option[String] = avroScorerOption.map(_.getPhaseClass)
     val scorer: Option[Class[Scorer]] = scorerClassName.map { className: String =>
       getClassForPhase[Scorer](
-        phaseImplName = className,
-        phase = classOf[Scorer])
+          phaseImplName = className,
+          phase = classOf[Scorer])
     }
 
     val scoreExtractorClassName: Option[String] = avroScorerOption match {
@@ -388,8 +395,8 @@ object ModelDefinition {
     }
     val scoreExtractor: Option[Class[Extractor]] = scoreExtractorClassName
       .map { className: String => getClassForPhase[Extractor](
-      phaseImplName = className,
-      phase = classOf[Extractor])
+        phaseImplName = className,
+        phase = classOf[Extractor])
     }
 
     // Build a model definition.

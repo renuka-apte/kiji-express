@@ -174,7 +174,7 @@ final class ScoreProducer
    */
   override def getDataRequest(): KijiDataRequest = modelEnvironment
       .scoreEnvironment
-	    .get
+      .get
       .inputConfig
       .asInstanceOf[KijiInputSpec]
       .dataRequest
@@ -204,7 +204,7 @@ final class ScoreProducer
     // Open the kvstores defined for the score phase.
     val scoreStoreDefs: Seq[KVStore] = modelEnvironment
         .scoreEnvironment
-		    .get
+        .get
         .kvstores
     val scoreStores: Map[String, JKeyValueStore[_, _]] = ScoreProducer
         .openJKvstores(scoreStoreDefs, getConf())
@@ -215,14 +215,13 @@ final class ScoreProducer
     // Setup the score phase's kvstores.
     val scoreStoreDefs: Seq[KVStore] = modelEnvironment
         .scoreEnvironment
-		    .get
+        .get
         .kvstores
     extractor.kvstores = ScoreProducer
       .wrapKvstoreReaders(scoreStoreDefs, context)
-    scorer.kvstores = ScoreProducer
-        .wrapKvstoreReaders(scoreStoreDefs, context)
+    scorer.kvstores = extractor.kvstores
 
-	// Setup the row converter.
+  // Setup the row converter.
     val uri = KijiURI.newBuilder(modelEnvironment
         .scoreEnvironment
         .get
@@ -239,7 +238,7 @@ final class ScoreProducer
     // Setup fields.
     val fieldMapping: Map[String, KijiColumnName] = modelEnvironment
         .scoreEnvironment
-		    .get
+        .get
         .inputConfig
         .asInstanceOf[KijiInputSpec]
         .fieldBindings

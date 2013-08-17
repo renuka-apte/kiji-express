@@ -116,7 +116,7 @@ final case class KijiSingleColumnOutputSpec(
  */
 object KijiSingleColumnOutputSpec {
   /**
-   * Converts an Avro KijiSingleColumnOutputSpec specification into a KijiSingleColumnOutputSpec case class.
+   * Converts an AvroKijiSingleColumnOutputSpec specification into a KijiSingleColumnOutputSpec case class.
    *
    * @param avroScorePhaseOutputSpec is the Avro specification.
    * @return the avro KijiSingleColumnOutputSpec specification as a KijiOutputSpec case class.
