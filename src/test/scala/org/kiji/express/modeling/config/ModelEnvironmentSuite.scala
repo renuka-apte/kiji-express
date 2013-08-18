@@ -95,7 +95,7 @@ class ModelEnvironmentSuite extends FunSuite {
     assert("1.0.0" === environment.version)
     assert(expectedRequest === environment
         .scoreEnvironment
-		.get
+        .get
         .inputConfig
         .asInstanceOf[KijiInputSpec]
         .dataRequest
@@ -103,7 +103,7 @@ class ModelEnvironmentSuite extends FunSuite {
     assert(expectedKvstores === environment.scoreEnvironment.get.kvstores)
     assert("info:out" === environment
         .scoreEnvironment
-		.get
+        .get
         .outputConfig
         .asInstanceOf[KijiSingleColumnOutputSpec]
         .outputColumn)

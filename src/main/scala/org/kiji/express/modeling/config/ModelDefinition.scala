@@ -152,7 +152,7 @@ final class ModelDefinition private[express] (
         .build()
     }.getOrElse(null)
 
-	// scalastyle:off null
+    // scalastyle:off null
     val definition: AvroModelDefinition = AvroModelDefinition
         .newBuilder()
         .setName(name)
