@@ -464,6 +464,12 @@ object ModelDefinition {
         modelDefinition.scorerClass.isEmpty) {
       val error = "The model defines no phases. A valid definition requires at least one phase."
       Some(new ValidationException(error))
+    } else if (modelDefinition.preparerClass.isDefined &&
+        modelDefinition.trainerClass.isEmpty &&
+        modelDefinition.scorerClass.isDefined) {
+      Some(new ValidationException("Unsupported combination of phases. Prepare must be followed by "
+        + "train in order to be useful in to score."))
+
     } else {
       None
     }

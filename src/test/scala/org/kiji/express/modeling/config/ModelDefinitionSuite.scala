@@ -274,6 +274,18 @@ class ModelDefinitionSuite extends FunSuite {
     assert("The class \"blah\" could not be found. Please ensure that you have provided a valid " +
         "class name and that it is available on your classpath." === thrown.getMessage)
   }
+
+  test("ModelDefinition validates bad phase combination") {
+    val thrown = intercept[ModelDefinitionValidationException] {
+      val modelDefinition = ModelDefinition(
+        name = "name",
+        version = "1.0.0",
+        preparer = Some(classOf[ModelDefinitionSuite.MyPreparer]),
+        scoreExtractor = Some(classOf[ModelDefinitionSuite.MyExtractor]),
+        scorer = Some(classOf[ModelDefinitionSuite.MyScorer]))
+    }
+    assert(thrown.getMessage.contains("Unsupported combination of phases."))
+  }
 }
 
 object ModelDefinitionSuite {
