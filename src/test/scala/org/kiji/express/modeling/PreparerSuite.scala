@@ -21,11 +21,19 @@ package org.kiji.express.modeling
 
 import org.scalatest.FunSuite
 
-import com.twitter.scalding.RichPipe
+import com.twitter.scalding._
+import com.twitter.scalding.TextLine
 
 class TestPreparer extends Preparer {
-  override def prepare(input: RichPipe): RichPipe = {
-    input.map('input -> 'output) { input: String => input.length }
+  class WordCountJob extends PreparerJob {
+    args("input")
+      .asInstanceOf[TextLine]
+      .flatMap('line -> 'word) { line : String => line.split("\\s+") }
+      .groupBy('word) { _.size }
+  }
+
+  override def prepare(input: Source, output: Source): Unit = {
+    new WordCountJob().run
   }
 }
 
