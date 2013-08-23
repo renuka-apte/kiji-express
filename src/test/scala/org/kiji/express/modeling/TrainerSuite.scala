@@ -24,8 +24,8 @@ import org.scalatest.FunSuite
 
 class TestTrainer extends Trainer {
   override def train(
-      inputs: Map[String, Source],
-      outputs: Map[String, Source]) {
+      input: Source,
+      output: Source) {
     // No-op for test.
   }
 }

@@ -40,14 +40,14 @@ import org.kiji.express.modeling.impl.KeyValueStores
  * example:
  * {{{
  *   class MyTrainer extends Trainer {
- *     override def train(inputs: Map[String, Source], outputs: Map[String, Source]) {
+ *     override def train(input: Source, output: Source) {
  *       new TrainerJob {
- *         inputs("myInputSource")
+ *         input
  *             .map('inputField -> 'intermediateField) { inputColumn: KijiSlice[String] =>
  *               inputColumn.getFirstValue
  *             }
  *             .groupBy('intermediateField) { _.count('count) }
- *             .write(outputs("myOutputSource"))
+ *             .write(output)
  *       }.run.finish
  *     }
  *   }
@@ -70,10 +70,10 @@ trait Trainer
   /**
    * Used to define the computation required for the Train phase of the model lifecycle.
    *
-   * @param inputs data sources used during the train phase.
-   * @param outputs data sources used during the train phase.
+   * @param input data source used during the train phase.
+   * @param output data source used during the train phase.
    */
   def train(
-      inputs: Map[String, Source],
-      outputs: Map[String, Source]): Unit
+      input: Source,
+      output: Source): Unit
 }

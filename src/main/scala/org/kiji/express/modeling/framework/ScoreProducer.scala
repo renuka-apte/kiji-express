@@ -206,7 +206,7 @@ final class ScoreProducer
         .get
         .kvstores
     val scoreStores: Map[String, JKeyValueStore[_, _]] = ScoreProducer
-        .openJKvstores(scoreStoreDefs, getConf())
+        .openKvstores(scoreStoreDefs, getConf())
     scoreStores.asJava
   }
 
@@ -352,7 +352,7 @@ object ScoreProducer {
    * @param conf containing settings pertaining to the specified kvstores.
    * @return a mapping from the kvstore's name to the opened kvstore.
    */
-  def openJKvstores(
+  def openKvstores(
       kvstores: Seq[KVStore],
       conf: Configuration): Map[String, JKeyValueStore[_, _]] = {
     kvstores
