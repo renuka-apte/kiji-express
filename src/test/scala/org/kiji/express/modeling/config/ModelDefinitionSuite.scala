@@ -290,15 +290,13 @@ class ModelDefinitionSuite extends FunSuite {
 
 object ModelDefinitionSuite {
   class MyPreparer extends Preparer {
-    def prepare(input: RichPipe): RichPipe = {
-      input
-    }
+    override def prepare(input: Source, output: Source) { }
   }
 
   class AnotherPreparer extends MyPreparer
 
   class MyTrainer extends Trainer {
-    override def train(inputs: Map[String, Source], outputs: Map[String, Source]) { }
+    override def train(input: Source, output: Source) { }
   }
 
   class AnotherTrainer extends MyTrainer

@@ -75,6 +75,6 @@ trait Preparer
    * @param output data source used during the prepare phase.
    */
   def prepare(
-             input: Source,
-             output: Source): Unit
+      input: Source,
+      output: Source): Unit
 }

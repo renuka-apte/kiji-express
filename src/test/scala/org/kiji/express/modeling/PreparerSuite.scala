@@ -25,15 +25,15 @@ import com.twitter.scalding._
 import com.twitter.scalding.TextLine
 
 class TestPreparer extends Preparer {
-  class WordCountJob extends PreparerJob {
-    args("input")
-      .asInstanceOf[TextLine]
+  class WordCountJob(input: Source, output: Source) extends PreparerJob {
+    input
       .flatMap('line -> 'word) { line : String => line.split("\\s+") }
       .groupBy('word) { _.size }
+      .write(output)
   }
 
   override def prepare(input: Source, output: Source): Unit = {
-    new WordCountJob().run
+    new WordCountJob(input, output).run
   }
 }
 
