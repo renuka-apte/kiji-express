@@ -27,7 +27,6 @@ import org.apache.hadoop.fs.Path
 import org.kiji.annotations.ApiAudience
 import org.kiji.annotations.ApiStability
 import org.kiji.express.KijiSlice
-import org.kiji.express.avro.KvStoreType
 import org.kiji.express.modeling.ExtractFn
 import org.kiji.express.modeling.Extractor
 import org.kiji.express.modeling.KeyValueStore
