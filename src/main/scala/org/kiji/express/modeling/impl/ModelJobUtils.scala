@@ -19,6 +19,7 @@
 
 package org.kiji.express.modeling.impl
 
+import com.twitter.scalding.Source
 import org.kiji.schema.{KijiColumnName, KijiURI, KijiDataRequest}
 import org.kiji.express.modeling.config._
 import scala.Some
@@ -31,6 +32,7 @@ import org.kiji.mapreduce.kvstore.lib.{ AvroKVRecordKeyValueStore => JAvroKVReco
 import org.kiji.mapreduce.kvstore.lib.{ AvroRecordKeyValueStore => JAvroRecordKeyValueStore }
 import org.kiji.mapreduce.kvstore.lib.{ KijiTableKeyValueStore => JKijiTableKeyValueStore }
 import org.apache.hadoop.fs.Path
+import org.kiji.express.flow.KijiInput
 
 object ModelJobUtils {
 
@@ -181,5 +183,34 @@ object ModelJobUtils {
           (kvstore.name, jkvstore)
         }
         .toMap
+  }
+
+  def inputSpecToSource(modelEnvironment: ModelEnvironment, phase: PhaseType): Source = {
+    val inputConfig: InputSpec = phase match {
+      case PhaseType.PREPARE => modelEnvironment
+          .prepareEnvironment
+          .getOrElse {
+            throw new IllegalArgumentException("Prepare environment does not exist")
+          }
+          .inputConfig
+      case PhaseType.TRAIN => modelEnvironment
+          .trainEnvironment
+          .getOrElse {
+            throw new IllegalArgumentException("Prepare environment does not exist")
+          }
+          .inputConfig
+      case PhaseType.SCORE => modelEnvironment
+          .scoreEnvironment
+          .getOrElse {
+            throw new IllegalArgumentException("Prepare environment does not exist")
+          }
+          .inputConfig
+    }
+    inputConfig match {
+      case kijiInputSpec: KijiInputSpec => {
+        KijiInput(kijiInputSpec.tableUri)
+      }
+      case _ => throw new IllegalArgumentException("Prepare environment does not exist")
+    }
   }
 }
