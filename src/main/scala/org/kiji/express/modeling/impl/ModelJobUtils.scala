@@ -32,7 +32,7 @@ import org.kiji.mapreduce.kvstore.lib.{ AvroKVRecordKeyValueStore => JAvroKVReco
 import org.kiji.mapreduce.kvstore.lib.{ AvroRecordKeyValueStore => JAvroRecordKeyValueStore }
 import org.kiji.mapreduce.kvstore.lib.{ KijiTableKeyValueStore => JKijiTableKeyValueStore }
 import org.apache.hadoop.fs.Path
-import org.kiji.express.flow.KijiInput
+import org.kiji.express.flow.{ColumnRequest, Between, TimeRange, KijiInput}
 
 object ModelJobUtils {
 
@@ -185,6 +185,19 @@ object ModelJobUtils {
         .toMap
   }
 
+  def getTimeRange(inputSpec: InputSpec): TimeRange = {
+    inputSpec match {
+      case kijiInputSpec: KijiInputSpec =>
+        Between(kijiInputSpec.dataRequest.minTimeStamp,
+            kijiInputSpec.dataRequest.maxTimeStamp)
+      case _ => throw new IllegalStateException("Unsupported Input Specification")
+    }
+  }
+
+  def getColumnMap(inputSpec: KijiInputSpec): Map[ColumnRequest, Symbol] = {
+
+  }
+
   def inputSpecToSource(modelEnvironment: ModelEnvironment, phase: PhaseType): Source = {
     val inputConfig: InputSpec = phase match {
       case PhaseType.PREPARE => modelEnvironment
@@ -208,7 +221,9 @@ object ModelJobUtils {
     }
     inputConfig match {
       case kijiInputSpec: KijiInputSpec => {
-        KijiInput(kijiInputSpec.tableUri)
+        KijiInput(kijiInputSpec.tableUri,
+            getTimeRange(kijiInputSpec))
+            .apply(getColumnMap(kijiInputSpec))
       }
       case _ => throw new IllegalArgumentException("Prepare environment does not exist")
     }
