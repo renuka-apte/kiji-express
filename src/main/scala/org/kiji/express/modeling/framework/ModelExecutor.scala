@@ -94,6 +94,10 @@ final class ModelExecutor (_modelDefinition: ModelDefinition,
   scoreExtractor = getInstanceForPhaseClass[Extractor](_modelDefinition.scoreExtractor)
   scorer = getInstanceForPhaseClass[Scorer](_modelDefinition.scorerClass)
 
+  def runPreparer(): Boolean = {
+
+  }
+
   def runScore(): Boolean = {
     ScoreProducerJobBuilder
         .buildJob(_modelDefinition, _modelEnvironment, _hadoopConfiguration)
