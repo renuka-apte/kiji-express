@@ -73,8 +73,9 @@ trait Preparer
    *
    * @param input data source used during the prepare phase.
    * @param output data source used during the prepare phase.
+   * @return true if job succeeds, false otherwise.
    */
   def prepare(
       input: Source,
-      output: Source): Unit
+      output: Source): Boolean
 }

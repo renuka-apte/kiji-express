@@ -32,8 +32,9 @@ class TestPreparer extends Preparer {
       .write(output)
   }
 
-  override def prepare(input: Source, output: Source): Unit = {
+  override def prepare(input: Source, output: Source): Boolean = {
     new WordCountJob(input, output).run
+    true
   }
 }
 

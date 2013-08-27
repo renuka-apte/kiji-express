@@ -35,9 +35,7 @@ import org.kiji.express.modeling.config.KijiSingleColumnOutputSpec
 import org.kiji.express.modeling.config.KVStore
 import org.kiji.express.modeling.config.ModelDefinition
 import org.kiji.express.modeling.config.ModelEnvironment
-import org.kiji.express.modeling.impl.AvroKVRecordKeyValueStore
-import org.kiji.express.modeling.impl.AvroRecordKeyValueStore
-import org.kiji.express.modeling.impl.KijiTableKeyValueStore
+import org.kiji.express.modeling.impl.{ModelJobUtils, AvroKVRecordKeyValueStore, AvroRecordKeyValueStore, KijiTableKeyValueStore}
 import org.kiji.express.util.GenericRowDataConverter
 import org.kiji.express.util.Tuples
 import org.kiji.mapreduce.KijiContext
@@ -56,6 +54,8 @@ import scala.Some
 import org.kiji.express.modeling.ScoreFn
 import org.kiji.schema.shell.DDLException
 import org.apache.hadoop.hbase.HBaseConfiguration
+import com.twitter.scalding.Source
+import org.kiji.express.modeling.impl.ModelJobUtils.PhaseType
 
 @ApiAudience.Framework
 @ApiStability.Experimental
@@ -88,13 +88,35 @@ final class ModelExecutor (_modelDefinition: ModelDefinition,
   scorer = getInstanceForPhaseClass[Scorer](_modelDefinition.scorerClass)
 
   def runPreparer(): Boolean = {
-    return true
+    if (preparer.isEmpty) {
+      throw new IllegalArgumentException("A preparer has not been provided in the Model " +
+        "Definition")
+    }
+    val input: Source = ModelJobUtils.inputSpecToSource(_modelEnvironment, PhaseType.PREPARE)
+    val output: Source = ModelJobUtils.outputSpecToSource(_modelEnvironment, PhaseType.PREPARE)
+    preparer.get.prepare(input, output)
   }
 
-  def runScore(): Boolean = {
+  def runTrainer(): Boolean = {
+    if (trainer.isEmpty) {
+      throw new IllegalArgumentException("A trainer has not been provided in the Model " +
+        "Definition")
+    }
+    val input: Source = ModelJobUtils.inputSpecToSource(_modelEnvironment, PhaseType.TRAIN)
+    val output: Source = ModelJobUtils.outputSpecToSource(_modelEnvironment, PhaseType.TRAIN)
+    trainer.get.train(input, output)
+  }
+
+  def runScorer(): Boolean = {
     ScoreProducerJobBuilder
         .buildJob(_modelDefinition, _modelEnvironment, _hadoopConfiguration)
         .run()
+  }
+
+  def run(): Boolean = {
+    (preparer.isEmpty || runPreparer()) &&
+        (trainer.isEmpty || runTrainer()) &&
+        (scorer.isEmpty || runScorer())
   }
 }
 

@@ -91,12 +91,6 @@ object ModelJobUtils {
       .outputColumn
 
   /**
-   * Configuration key addressing the JSON configuration of a
-   * [[org.kiji.express.modeling.config.ModelEnvironment]].
-   */
-  val modelEnvironmentConfKey: String = "org.kiji.express.model.environment"
-
-  /**
    * Wrap the provided kvstores in their scala counterparts.
    *
    * @param kvstores to open.
@@ -187,7 +181,7 @@ object ModelJobUtils {
         .toMap
   }
 
-  def getTimeRange(inputSpec: InputSpec): TimeRange = {
+  private def getTimeRange(inputSpec: InputSpec): TimeRange = {
     inputSpec match {
       case kijiInputSpec: KijiInputSpec =>
         Between(kijiInputSpec.dataRequest.minTimeStamp,
@@ -196,7 +190,7 @@ object ModelJobUtils {
     }
   }
 
-  def getColumnMap(inputSpec: KijiInputSpec): Map[ColumnRequest, Symbol] = {
+  private def getInputColumnMap(inputSpec: KijiInputSpec): Map[ColumnRequest, Symbol] = {
     val columnMap: Map[ColumnRequest, String] = inputSpec.dataRequest.columnRequests.map (
         (columnReq: ExpressColumnRequest) => {
           val options = new ColumnRequestOptions(columnReq.maxVersions, columnReq.filter.map {
@@ -245,7 +239,44 @@ object ModelJobUtils {
       case kijiInputSpec: KijiInputSpec => {
         KijiInput(kijiInputSpec.tableUri,
             getTimeRange(kijiInputSpec))
-            .apply(getColumnMap(kijiInputSpec))
+            .apply(getInputColumnMap(kijiInputSpec))
+      }
+      case _ => throw new IllegalArgumentException("Prepare environment does not exist")
+    }
+  }
+
+  private def getOutputColumnMap(kijiOutputSpec: KijiOutputSpec): Seq[(Symbol, String)] = {
+    kijiOutputSpec.fieldBindings.map(fieldBinding => {
+      (Symbol(fieldBinding.tupleFieldName), fieldBinding.storeFieldName)
+    })
+  }
+
+  def outputSpecToSource(modelEnvironment: ModelEnvironment, phase: PhaseType): Source = {
+    val outputConfig: OutputSpec = phase match {
+      case PhaseType.PREPARE => modelEnvironment
+        .prepareEnvironment
+        .getOrElse {
+          throw new IllegalArgumentException("Prepare environment does not exist")
+        }
+        .outputConfig
+      case PhaseType.TRAIN => modelEnvironment
+        .trainEnvironment
+        .getOrElse {
+          throw new IllegalArgumentException("Prepare environment does not exist")
+        }
+        .outputConfig
+      case PhaseType.SCORE => modelEnvironment
+        .scoreEnvironment
+        .getOrElse {
+          throw new IllegalArgumentException("Prepare environment does not exist")
+        }
+        .outputConfig
+    }
+    outputConfig match {
+      case kijiOutputSpec: KijiOutputSpec => {
+        KijiOutput(kijiOutputSpec.tableUri,
+            Symbol(kijiOutputSpec.timeStampField))
+          .apply(getOutputColumnMap(kijiOutputSpec):_*)
       }
       case _ => throw new IllegalArgumentException("Prepare environment does not exist")
     }

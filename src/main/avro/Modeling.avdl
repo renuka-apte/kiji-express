@@ -287,7 +287,7 @@ protocol Modeling {
     /**
      * Timestamp for the output cells.
      */
-    union{null, long} time_stamp_field = null;
+    union{null, string} time_stamp_field = null;
 
     /**
      * Associations between field names and column names. Required.

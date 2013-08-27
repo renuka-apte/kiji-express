@@ -119,7 +119,7 @@ class ModelExecutorSuite extends KijiSuite {
       val modelExecutor = ModelExecutor(modelDefinition, modelEnvironment)
 
       // Verify that everything went as expected.
-      assert(modelExecutor.runScore())
+      assert(modelExecutor.runScorer())
       doAndClose(table.openTableReader()) { reader: KijiTableReader =>
         val v1 = reader
           .get(table.getEntityId("row1"), KijiDataRequest.create("family", "column2"))

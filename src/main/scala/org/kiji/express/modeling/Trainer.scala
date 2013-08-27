@@ -72,8 +72,9 @@ trait Trainer
    *
    * @param input data source used during the train phase.
    * @param output data source used during the train phase.
+   * @return true if job succeeds, false otherwise.
    */
   def train(
       input: Source,
-      output: Source): Unit
+      output: Source): Boolean
 }
