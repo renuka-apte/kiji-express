@@ -32,7 +32,9 @@ import org.kiji.mapreduce.kvstore.lib.{ AvroKVRecordKeyValueStore => JAvroKVReco
 import org.kiji.mapreduce.kvstore.lib.{ AvroRecordKeyValueStore => JAvroRecordKeyValueStore }
 import org.kiji.mapreduce.kvstore.lib.{ KijiTableKeyValueStore => JKijiTableKeyValueStore }
 import org.apache.hadoop.fs.Path
-import org.kiji.express.flow.{ColumnRequest, Between, TimeRange, KijiInput}
+import org.kiji.express.flow._
+import org.kiji.express.flow.Between
+import scala.Some
 
 object ModelJobUtils {
 
@@ -195,7 +197,27 @@ object ModelJobUtils {
   }
 
   def getColumnMap(inputSpec: KijiInputSpec): Map[ColumnRequest, Symbol] = {
-
+    val columnMap: Map[ColumnRequest, String] = inputSpec.dataRequest.columnRequests.map (
+        (columnReq: ExpressColumnRequest) => {
+          val options = new ColumnRequestOptions(columnReq.maxVersions, columnReq.filter.map {
+            _.getKijiColumnFilter()
+          })
+          val kijiColName = new KijiColumnName(columnReq.name)
+          val colReq: ColumnRequest = if (kijiColName.isFullyQualified) {
+            QualifiedColumn(kijiColName.getFamily, kijiColName.getQualifier, options)
+          } else {
+            // TODO specify regex matching for qualifier
+            ColumnFamily(kijiColName.getFamily, None, options)
+          }
+          (colReq -> columnReq.name)
+        }
+    ).toMap
+    val bindingMap: Map[String, String] = inputSpec.fieldBindings.seq.map(
+        fieldBinding => {
+          fieldBinding.storeFieldName -> fieldBinding.tupleFieldName
+        }
+    ).toMap
+    columnMap.map{ case(k,v) => k -> Symbol(bindingMap(v)) }
   }
 
   def inputSpecToSource(modelEnvironment: ModelEnvironment, phase: PhaseType): Source = {

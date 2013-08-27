@@ -273,7 +273,7 @@ final class ScoreProducer
     val row = rowConverter(input)
     // Prepare input to the extract phase.
     val slices: Seq[KijiSlice[Any]] = extractInputFields
-        .map { field =>
+        .map { (field: String) =>
           val columnName: KijiColumnName = fieldMapping(field.toString)
 
           // Build a slice from each column within the row.
