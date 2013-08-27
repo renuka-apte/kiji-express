@@ -62,13 +62,9 @@ import org.apache.hadoop.hbase.HBaseConfiguration
 final class ModelExecutor (_modelDefinition: ModelDefinition,
     _modelEnvironment: ModelEnvironment,
     _hadoopConfiguration: Configuration) {
-  /** PrepareExtractor to use for this model definition. Optional. */
-  private[this] var prepareExtractor: Option[Extractor] = None
   /** Preparer to use for this model definition. Optional. */
   private[this] var preparer: Option[Preparer] = None
 
-  /** TrainExtractor to use for this model definition. Optional. */
-  private[this] var trainExtractor: Option[Extractor] = None
   /** Trainer to use for this model definition. Optional. */
   private[this] var trainer: Option[Trainer] = None
 
@@ -85,17 +81,14 @@ final class ModelExecutor (_modelDefinition: ModelDefinition,
   }
 
   // Make an instance from the class of each phase.
-  prepareExtractor = getInstanceForPhaseClass[Extractor](_modelDefinition.prepareExtractor)
   preparer = getInstanceForPhaseClass[Preparer](_modelDefinition.preparerClass)
-
-  trainExtractor = getInstanceForPhaseClass[Extractor](_modelDefinition.trainExtractor)
   trainer = getInstanceForPhaseClass[Trainer](_modelDefinition.trainerClass)
 
   scoreExtractor = getInstanceForPhaseClass[Extractor](_modelDefinition.scoreExtractor)
   scorer = getInstanceForPhaseClass[Scorer](_modelDefinition.scorerClass)
 
   def runPreparer(): Boolean = {
-
+    return true
   }
 
   def runScore(): Boolean = {

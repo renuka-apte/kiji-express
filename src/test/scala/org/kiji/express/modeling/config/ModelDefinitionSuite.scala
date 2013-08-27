@@ -64,7 +64,7 @@ class ModelDefinitionSuite extends FunSuite {
     val modelDefinition = ModelDefinition(
         name = "name",
         version = "1.0.0",
-        prepareExtractor = Some(classOf[ModelDefinitionSuite.MyExtractor]),
+        scoreExtractor = Some(classOf[ModelDefinitionSuite.MyExtractor]),
         preparer = Some(classOf[ModelDefinitionSuite.MyPreparer]),
         trainer = Some(classOf[ModelDefinitionSuite.MyTrainer]),
         scorer = Some(classOf[ModelDefinitionSuite.MyScorer]))
@@ -74,9 +74,7 @@ class ModelDefinitionSuite extends FunSuite {
     assert(classOf[ModelDefinitionSuite.MyPreparer] === modelDefinition.preparerClass.get)
     assert(classOf[ModelDefinitionSuite.MyTrainer] === modelDefinition.trainerClass.get)
     assert(classOf[ModelDefinitionSuite.MyScorer] === modelDefinition.scorerClass.get)
-    assert(classOf[ModelDefinitionSuite.MyExtractor] === modelDefinition.prepareExtractor.get)
-    assert(None === modelDefinition.trainExtractor)
-    assert(None === modelDefinition.scoreExtractor)
+    assert(classOf[ModelDefinitionSuite.MyExtractor] === modelDefinition.scoreExtractor.get)
 
     // Serialize and deserialize the definition.
     val serialized = modelDefinition.toJson()
@@ -87,7 +85,7 @@ class ModelDefinitionSuite extends FunSuite {
     assert("1.0.0" === deserialized.version)
     assert(classOf[ModelDefinitionSuite.MyPreparer] === deserialized.preparerClass.get)
     assert(classOf[ModelDefinitionSuite.MyTrainer] === deserialized.trainerClass.get)
-    assert(classOf[ModelDefinitionSuite.MyExtractor] === deserialized.prepareExtractor.get)
+    assert(classOf[ModelDefinitionSuite.MyExtractor] === deserialized.scoreExtractor.get)
     assert(classOf[ModelDefinitionSuite.MyScorer] === deserialized.scorerClass.get)
   }
 
@@ -135,12 +133,12 @@ class ModelDefinitionSuite extends FunSuite {
     assert(classOf[ModelDefinitionSuite.MyScorer] === modelDefinition5.scorerClass.get)
 
     val modelDefinition6 = modelDefinition5.withNewSettings(
-        prepareExtractor = Some(classOf[ModelDefinitionSuite.AnotherExtractor]))
+        scoreExtractor = Some(classOf[ModelDefinitionSuite.AnotherExtractor]))
     assert("name2" === modelDefinition6.name)
     assert("2.0.0" === modelDefinition6.version)
     assert(classOf[ModelDefinitionSuite.AnotherPreparer] === modelDefinition6.preparerClass.get)
     assert(classOf[ModelDefinitionSuite.AnotherTrainer] === modelDefinition6.trainerClass.get)
-    assert(classOf[ModelDefinitionSuite.AnotherExtractor] === modelDefinition6.prepareExtractor
+    assert(classOf[ModelDefinitionSuite.AnotherExtractor] === modelDefinition6.scoreExtractor
         .get)
     assert(classOf[ModelDefinitionSuite.MyScorer] === modelDefinition6.scorerClass.get)
 
@@ -150,7 +148,7 @@ class ModelDefinitionSuite extends FunSuite {
     assert("2.0.0" === modelDefinition7.version)
     assert(classOf[ModelDefinitionSuite.AnotherPreparer] === modelDefinition7.preparerClass.get)
     assert(classOf[ModelDefinitionSuite.AnotherTrainer] === modelDefinition7.trainerClass.get)
-    assert(classOf[ModelDefinitionSuite.AnotherExtractor] === modelDefinition7.prepareExtractor
+    assert(classOf[ModelDefinitionSuite.AnotherExtractor] === modelDefinition7.scoreExtractor
         .get)
     assert(classOf[ModelDefinitionSuite.AnotherScorer] === modelDefinition7.scorerClass.get)
   }
@@ -164,7 +162,7 @@ class ModelDefinitionSuite extends FunSuite {
     assert(classOf[ModelDefinitionSuite.MyPreparer].getName
         === definition.preparerClass.get.getName)
     assert(classOf[ModelDefinitionSuite.MyExtractor].getName ===
-        definition.prepareExtractor.get.getName)
+        definition.scoreExtractor.get.getName)
     assert(classOf[ModelDefinitionSuite.MyScorer].getName === definition.scorerClass.get.getName)
   }
 
