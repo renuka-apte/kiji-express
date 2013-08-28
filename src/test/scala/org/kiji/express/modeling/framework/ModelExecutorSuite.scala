@@ -21,23 +21,11 @@ package org.kiji.express.modeling.framework
 
 import org.apache.hadoop.fs.Path
 
-import org.kiji.express.KijiSlice
-import org.kiji.express.KijiSuite
-import org.kiji.express.modeling.config.ExpressColumnRequest
-import org.kiji.express.modeling.config.ExpressDataRequest
-import org.kiji.express.modeling.config.FieldBinding
-import org.kiji.express.modeling.config.KijiInputSpec
-import org.kiji.express.modeling.config.KijiSingleColumnOutputSpec
-import org.kiji.express.modeling.config.KVStore
-import org.kiji.express.modeling.config.ModelDefinition
-import org.kiji.express.modeling.config.ModelEnvironment
-import org.kiji.express.modeling.config.ScoreEnvironment
-import org.kiji.express.modeling.Extractor
+import org.kiji.express.{EntityId, KijiSlice, KijiSuite}
+import org.kiji.express.modeling.config._
+import org.kiji.express.modeling._
 import org.kiji.express.modeling.impl.KeyValueStoreImplSuite
-import org.kiji.express.modeling.KeyValueStore
 import org.kiji.express.modeling.lib.FirstValueExtractor
-import org.kiji.express.modeling.ScoreProducerJobBuilder
-import org.kiji.express.modeling.Scorer
 import org.kiji.express.util.Resources.doAndClose
 import org.kiji.express.util.Resources.doAndRelease
 import org.kiji.schema.Kiji
@@ -48,12 +36,19 @@ import org.kiji.schema.KijiURI
 import org.kiji.schema.layout.KijiTableLayout
 import org.kiji.schema.layout.KijiTableLayouts
 import org.kiji.schema.util.InstanceBuilder
+import scala.Some
+import com.twitter.scalding.Source
+import org.kiji.express.modeling.config.ExpressColumnRequest
+import scala.Some
+import org.kiji.schema.avro.TableLayoutDesc
 
 class ModelExecutorSuite extends KijiSuite {
   test("A ModelExecutor is properly created") {
     val modelDef: ModelDefinition = ModelDefinition(
         name = "test-model-definition",
         version = "1.0",
+        preparer = Some(classOf[ModelExecutorSuite.PrepareWordCounter]),
+        trainer = Some(classOf[ModelExecutorSuite.TrainWordCounter]),
         scoreExtractor = Some(classOf[ScoreProducerSuite.DoublingExtractor]),
         scorer = Some(classOf[ScoreProducerSuite.UpperCaseScorer]))
     val modelEnv = ModelEnvironment(
@@ -137,4 +132,118 @@ class ModelExecutorSuite extends KijiSuite {
     kiji.release()
   }
 
+  test("A prepare job can be run over a table") {
+    val testLayoutDesc: TableLayoutDesc = layout(KijiTableLayouts.SIMPLE_TWO_COLUMNS).getDesc
+    testLayoutDesc.setName("input_table")
+
+    val outputLayoutDesc: TableLayoutDesc = layout(KijiTableLayouts.SIMPLE).getDesc
+    outputLayoutDesc.setName("output_table")
+
+    val kiji: Kiji = new InstanceBuilder("default")
+        .withTable(outputLayoutDesc)
+        .withTable(testLayoutDesc)
+        .withRow("row1")
+        .withFamily("family")
+        .withQualifier("column1").withValue("foo")
+        .withRow("row2")
+        .withFamily("family")
+        .withQualifier("column1").withValue("bar")
+        .withRow("row3")
+        .withFamily("family")
+        .withQualifier("column1").withValue("bar")
+        .build()
+
+    val modelDefinition: ModelDefinition = ModelDefinition(
+        name = "prepare-model-definition",
+        version = "1.0",
+        preparer = Some(classOf[ModelExecutorSuite.PrepareWordCounter]))
+
+    val request: ExpressDataRequest = new ExpressDataRequest(0, Long.MaxValue,
+        new ExpressColumnRequest("family:column1", 1, None) :: Nil)
+
+    val inputUri: KijiURI = doAndRelease(kiji.openTable("input_table")) { table: KijiTable =>
+      table.getURI()}
+
+    doAndRelease(kiji.openTable("output_table")) { table: KijiTable =>
+      val outputUri: KijiURI = table.getURI()
+
+      val modelEnvironment: ModelEnvironment = ModelEnvironment(
+        name = "prepare-model-environment",
+        version = "1.0",
+        prepareEnvironment = Some(PrepareEnvironment(
+            inputConfig = KijiInputSpec(
+                inputUri.toString,
+                dataRequest = request,
+                fieldBindings = Seq(
+                    FieldBinding(tupleFieldName = "word", storeFieldName = "family:column1"))
+            ),
+            outputConfig = KijiOutputSpec(
+                tableUri = outputUri.toString,
+                fieldBindings = Seq(
+                    FieldBinding(tupleFieldName = "size", storeFieldName = "family:column"))
+            ),
+            kvstores = Seq()
+        )),
+        trainEnvironment = None,
+        scoreEnvironment = None
+      )
+
+      // Build the produce job.
+      val modelExecutor = ModelExecutor(modelDefinition, modelEnvironment)
+
+      // Verify that everything went as expected.
+      assert(modelExecutor.runPreparer())
+      doAndClose(table.openTableReader()) { reader: KijiTableReader =>
+        val v1 = reader
+          .get(table.getEntityId("foo"), KijiDataRequest.create("family", "column"))
+          .getMostRecentValue("family", "column")
+          .toString
+        val v2 = reader
+          .get(table.getEntityId("bar"), KijiDataRequest.create("family", "column"))
+          .getMostRecentValue("family", "column")
+          .toString
+
+        assert("1" === v1)
+        assert("2" === v2)
+      }
+    }
+    kiji.release()
+
+  }
+
+}
+
+object ModelExecutorSuite {
+  class PrepareWordCounter extends Preparer {
+    class WordCountJob(input: Source, output: Source) extends PreparerJob {
+      input
+        .flatMapTo('word -> 'countedWord) { slice: KijiSlice[String] =>
+            slice.cells.map { cell => cell.datum } }
+        .groupBy('countedWord) { _.size }
+        .map('countedWord -> 'entityId) {countedWord: String => EntityId(countedWord)}
+        .map('size -> 'size) {size: Long => size.toString}
+        .write(output)
+    }
+
+    override def prepare(input: Source, output: Source): Boolean = {
+      new WordCountJob(input, output).run
+      true
+    }
+  }
+
+  class TrainWordCounter extends Trainer {
+    class WordCountJob(input: Source, output: Source) extends TrainerJob {
+      input
+        .flatMapTo('word -> 'countedWord) { slice: KijiSlice[String] =>
+            slice.cells.map { cell => cell.datum } }
+        .groupBy('countedWord) { _.size('count) }
+        .rename('countedWord -> 'entityId)
+        .write(output)
+    }
+
+    override def train(input: Source, output: Source): Boolean = {
+      new WordCountJob(input, output).run
+      true
+    }
+  }
 }

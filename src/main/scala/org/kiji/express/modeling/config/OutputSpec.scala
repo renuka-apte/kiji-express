@@ -56,12 +56,12 @@ sealed trait OutputSpec {
 final case class KijiOutputSpec(
     tableUri: String,
     fieldBindings: Seq[FieldBinding],
-    timeStampField: String = null) extends OutputSpec{
+    timeStampField: Option[String] = None) extends OutputSpec{
   private[express] override def toAvroOutputSpec(): AvroOutputSpec = {
     val avroKijiOutputSpec = AvroKijiOutputSpec
         .newBuilder()
         .setTableUri(tableUri)
-        .setTimeStampField(timeStampField)
+        .setTimeStampField(timeStampField.getOrElse(null))
         .setFieldBindings(fieldBindings.map { _.toAvroFieldBinding } .asJava)
         .build()
 
@@ -85,7 +85,7 @@ object KijiOutputSpec {
   private[express] def apply(avroKijiOutputSpec: AvroKijiOutputSpec): KijiOutputSpec = {
     KijiOutputSpec(
         tableUri = avroKijiOutputSpec.getTableUri,
-        timeStampField = avroKijiOutputSpec.getTimeStampField,
+        timeStampField = Option(avroKijiOutputSpec.getTimeStampField),
         fieldBindings = avroKijiOutputSpec.getFieldBindings.asScala.map { FieldBinding(_) })
   }
 }

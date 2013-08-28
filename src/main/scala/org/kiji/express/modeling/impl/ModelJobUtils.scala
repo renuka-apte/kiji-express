@@ -274,9 +274,13 @@ object ModelJobUtils {
     }
     outputConfig match {
       case kijiOutputSpec: KijiOutputSpec => {
-        KijiOutput(kijiOutputSpec.tableUri,
-            Symbol(kijiOutputSpec.timeStampField))
-          .apply(getOutputColumnMap(kijiOutputSpec):_*)
+        val kijiOutput: KijiOutput = if (kijiOutputSpec.timeStampField.isDefined) {
+          KijiOutput(kijiOutputSpec.tableUri,
+            Symbol(kijiOutputSpec.timeStampField.get))
+        } else {
+          KijiOutput(kijiOutputSpec.tableUri)
+        }
+        kijiOutput.apply(getOutputColumnMap(kijiOutputSpec):_*)
       }
       case _ => throw new IllegalArgumentException("Prepare environment does not exist")
     }
