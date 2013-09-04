@@ -45,29 +45,35 @@ import org.kiji.express.modeling.framework.ModelExecutor
 final class NetflixMinHasher extends Configured with Tool {
 
   override def run(args: Array[String]): Int = {
+    val tableURL: String = args(0)
+
     val modelDefinition: ModelDefinition = ModelDefinition(
       name = "iterative-prepare-model-def",
       version = "1.0",
       preparer = Some(classOf[LSHMoviePreparer]))
 
-    val request: ExpressDataRequest = new ExpressDataRequest(0, Long.MaxValue,
-      new ExpressColumnRequest("rating", 1, None) :: Nil)
+    val request: ExpressDataRequest = new ExpressDataRequest(0, Long.MaxValue, Seq(
+      new ExpressColumnRequest("rating", 1, None),
+      new ExpressColumnRequest("info:movie_name", 1, None)
+    ))
 
     val modelEnvironment: ModelEnvironment = ModelEnvironment(
       name = "movie-minhash-model-environment",
       version = "1.0",
       prepareEnvironment = Some(PrepareEnvironment(
         inputConfig = KijiInputSpec(
-          "kiji://.env/default/movies",
+          tableURL,
           dataRequest = request,
           fieldBindings = Seq(
-            FieldBinding(tupleFieldName = "movieVector", storeFieldName = "rating")
+            FieldBinding(tupleFieldName = "movieRatings", storeFieldName = "rating"),
+            FieldBinding(tupleFieldName = "movieName", storeFieldName = "info:movie_name")
           )
         ),
         outputConfig = KijiOutputSpec(
-          tableUri = "kiji://.env/default/movies",
+          tableUri = tableURL,
           fieldBindings = Seq(
-            FieldBinding(tupleFieldName = "movieBuckets", storeFieldName = "info:buckets"))
+            FieldBinding(tupleFieldName = "recommendations",
+              storeFieldName = "info:recommendations"))
         ),
         kvstores = Seq()
       )),
@@ -95,6 +101,12 @@ object NetflixMinHasher {
    * @return a return code that signals the success of the specified job.
    */
   def main(args: Array[String]) {
+
+    if (args.length < 1){
+      println("Usage: NetflixMinHasher <kiji-table-URI>")
+      System.exit(1)
+    }
+
     ToolRunner.run(HBaseConfiguration.create(), new NetflixMinHasher, args)
   }
 }
