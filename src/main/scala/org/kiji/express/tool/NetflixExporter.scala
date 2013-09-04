@@ -14,8 +14,8 @@ class NetflixExporter(args: Args) extends KijiJob(args){
   ))
     .mapTo(('movieName, 'recommendations, 'movieId) -> 'recommendations){
     movieRecoTuple: (KijiSlice[String], KijiSlice[AvroRecord], KijiSlice[String]) =>
-      movieRecoTuple._3.getFirstValue() + "|" +
-      movieRecoTuple._1.getFirstValue() + "|" +
+      movieRecoTuple._3.getFirstValue() + "\t" +
+      movieRecoTuple._1.getFirstValue() + "\t" +
       "\"" +
       movieRecoTuple._2.getFirstValue()("similar_movie_ids").asInstanceOf[AvroList].asList()
         .map(av => av.asString().replaceAll("\"", "\"\"")).mkString("|") +
