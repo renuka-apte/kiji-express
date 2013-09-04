@@ -18,7 +18,7 @@ class NetflixExporter(args: Args) extends KijiJob(args){
       movieRecoTuple._1.getFirstValue() + "|" +
       "\"" +
       movieRecoTuple._2.getFirstValue()("similar_movie_ids").asInstanceOf[AvroList].asList()
-        .map(av => av.asString()).mkString("|") +
+        .map(av => av.asString().replaceAll("\"", "\"\"")).mkString("|") +
       "\""
 
   }
