@@ -74,7 +74,7 @@ class LSHMoviePreparer extends Preparer {
   }
 
   override def prepare(input: Source, output: Source): Boolean = {
-    val mh: MinHasher32 = new MinHasher32(0.8, 512)
+    val mh: MinHasher32 = new MinHasher32(0.7, 512)
     new LSHMovieJob[Long, Int](input, output, mh).run
     true
   }
