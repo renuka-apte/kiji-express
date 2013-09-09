@@ -75,6 +75,6 @@ trait Trainer
    * @return true if job succeeds, false otherwise.
    */
   def train(
-      input: Source,
-      output: Source): Boolean
+      input: Map[String, Source],
+      output: Map[String, Source]): Boolean
 }
