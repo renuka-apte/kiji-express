@@ -37,7 +37,7 @@ import org.kiji.express.modeling.config.FieldBinding
 import org.kiji.express.modeling.config.KijiInputSpec
 import org.kiji.express.modeling.config.KijiOutputSpec
 import org.kiji.express.modeling.config.KijiSingleColumnOutputSpec
-import org.kiji.express.modeling.config.KVStore
+import org.kiji.express.modeling.config.KeyValueStoreSpec
 import org.kiji.express.modeling.config.ModelDefinition
 import org.kiji.express.modeling.config.ModelEnvironment
 import org.kiji.express.modeling.config.PrepareEnvironment
@@ -61,10 +61,10 @@ class ModelExecutorSuite extends KijiSuite {
     val modelDef: ModelDefinition = ModelDefinition(
         name = "test-model-definition",
         version = "1.0",
-        preparer = Some(classOf[ModelExecutorSuite.PrepareWordCounter]),
-        trainer = Some(classOf[ModelExecutorSuite.TrainWordCounter]),
-        scoreExtractor = Some(classOf[ScoreProducerSuite.DoublingExtractor]),
-        scorer = Some(classOf[ScoreProducerSuite.UpperCaseScorer]))
+        preparerClass = Some(classOf[ModelExecutorSuite.PrepareWordCounter]),
+        trainerClass = Some(classOf[ModelExecutorSuite.TrainWordCounter]),
+        scoreExtractorClass = Some(classOf[ScoreProducerSuite.DoublingExtractor]),
+        scorerClass = Some(classOf[ScoreProducerSuite.UpperCaseScorer]))
     val modelEnv = ModelEnvironment(
         "myname",
         "1.0.0",
@@ -98,8 +98,8 @@ class ModelExecutorSuite extends KijiSuite {
       val modelDefinition: ModelDefinition = ModelDefinition(
         name = "test-model-definition",
         version = "1.0",
-        scoreExtractor = Some(classOf[ScoreProducerSuite.DoublingExtractor]),
-        scorer = Some(classOf[ScoreProducerSuite.UpperCaseScorer]))
+        scoreExtractorClass = Some(classOf[ScoreProducerSuite.DoublingExtractor]),
+        scorerClass = Some(classOf[ScoreProducerSuite.UpperCaseScorer]))
       val modelEnvironment: ModelEnvironment = ModelEnvironment(
         name = "test-model-environment",
         version = "1.0",
@@ -112,8 +112,8 @@ class ModelExecutorSuite extends KijiSuite {
             fieldBindings = Seq(
               FieldBinding(tupleFieldName = "field", storeFieldName = "family:column1"))),
           KijiSingleColumnOutputSpec(uri.toString, "family:column2"),
-          kvstores = Seq(
-            KVStore(
+          keyValueStoreSpecs = Seq(
+            KeyValueStoreSpec(
               storeType = "AVRO_KV",
               name = "side_data",
               properties = Map(
@@ -170,7 +170,7 @@ class ModelExecutorSuite extends KijiSuite {
     val modelDefinition: ModelDefinition = ModelDefinition(
         name = "prepare-model-definition",
         version = "1.0",
-        preparer = Some(classOf[ModelExecutorSuite.PrepareWordCounter]))
+        preparerClass = Some(classOf[ModelExecutorSuite.PrepareWordCounter]))
 
     val request: ExpressDataRequest = new ExpressDataRequest(0, Long.MaxValue,
         new ExpressColumnRequest("family:column1", 1, None) :: Nil)
@@ -185,18 +185,18 @@ class ModelExecutorSuite extends KijiSuite {
         name = "prepare-model-environment",
         version = "1.0",
         prepareEnvironment = Some(PrepareEnvironment(
-            inputConfig = KijiInputSpec(
+            inputSpec = KijiInputSpec(
                 inputUri.toString,
                 dataRequest = request,
                 fieldBindings = Seq(
                     FieldBinding(tupleFieldName = "word", storeFieldName = "family:column1"))
             ),
-            outputConfig = KijiOutputSpec(
+            outputSpec = KijiOutputSpec(
                 tableUri = outputUri.toString,
                 fieldBindings = Seq(
                     FieldBinding(tupleFieldName = "size", storeFieldName = "family:column"))
             ),
-            kvstores = Seq()
+            keyValueStoreSpecs = Seq()
         )),
         trainEnvironment = None,
         scoreEnvironment = None
@@ -257,33 +257,34 @@ class ModelExecutorSuite extends KijiSuite {
     val modelDefinition: ModelDefinition = ModelDefinition(
       name = "prepare-model-definition",
       version = "1.0",
-      trainer = Some(classOf[ModelExecutorSuite.TrainWordCounter]))
+      trainerClass = Some(classOf[ModelExecutorSuite.TrainWordCounter]))
 
     val request: ExpressDataRequest = new ExpressDataRequest(0, Long.MaxValue,
       new ExpressColumnRequest("family:column1", 1, None) :: Nil)
 
     val inputUri: KijiURI = doAndRelease(kiji.openTable("input_table")) { table: KijiTable =>
-      table.getURI()}
+      table.getURI
+    }
 
     doAndRelease(kiji.openTable("output_table")) { table: KijiTable =>
-      val outputUri: KijiURI = table.getURI()
+      val outputUri: KijiURI = table.getURI
 
       val modelEnvironment: ModelEnvironment = ModelEnvironment(
         name = "prepare-model-environment",
         version = "1.0",
         trainEnvironment = Some(TrainEnvironment(
-          inputConfig = KijiInputSpec(
+          inputSpec = KijiInputSpec(
             inputUri.toString,
             dataRequest = request,
             fieldBindings = Seq(
               FieldBinding(tupleFieldName = "word", storeFieldName = "family:column1"))
           ),
-          outputConfig = KijiOutputSpec(
+          outputSpec = KijiOutputSpec(
             tableUri = outputUri.toString,
             fieldBindings = Seq(
               FieldBinding(tupleFieldName = "size", storeFieldName = "family:column"))
           ),
-          kvstores = Seq()
+          keyValueStoreSpecs = Seq()
         )),
         prepareEnvironment = None,
         scoreEnvironment = None
@@ -297,7 +298,9 @@ class ModelExecutorSuite extends KijiSuite {
       // their own jobs. This makes the test below run in HadoopTest mode instead
       // of Hadoop mode whenever it is run after another test that uses JobTest.
       // Remove this after the bug in Scalding is fixed.
-      com.twitter.scalding.Mode.mode = Hdfs(false, HBaseConfiguration.create())
+      com.twitter.scalding.Mode.mode = Hdfs(
+          strict = false,
+          conf = HBaseConfiguration.create())
 
       // Verify that everything went as expected.
       assert(modelExecutor.runTrainer())
@@ -317,17 +320,16 @@ class ModelExecutorSuite extends KijiSuite {
       }
     }
     kiji.release()
-
   }
 
   test("A prepare-train-score job can be run over a table") {
-    //  The prepare phase will count the number of occurences in of values in family:column1
-    //  column of the input_table and write this to the output_table.
-    //  The train phase will read the output_table and calculate an average of the counts, and
-    //  write this value to the output_table at a row with entityId "AVERAGE".
-    //  The score phase uses a doubling extractor and an upper case scorer. It takes as input
-    //  the average calculated by the trainer. It writes the output to the output_table at a row
-    //  with entityId "FINAL".
+    // The prepare phase will count the number of occurences in of values in family:column1 column
+    // of the input_table and write this to the output_table.
+    // The train phase will read the output_table and calculate an average of the counts, and write
+    // this value to the output_table at a row with entityId "AVERAGE".
+    // The score phase uses a doubling extractor and an upper case scorerClass. It takes as input
+    // the average calculated by the trainerClass. It writes the output to the output_table at a row
+    // with entityId "FINAL".
 
     val testLayoutDesc: TableLayoutDesc = layout(KijiTableLayouts.SIMPLE_TWO_COLUMNS).getDesc
     testLayoutDesc.setName("input_table")
@@ -356,10 +358,10 @@ class ModelExecutorSuite extends KijiSuite {
     val modelDefinition: ModelDefinition = ModelDefinition(
       name = "prepare-model-definition",
       version = "1.0",
-      preparer = Some(classOf[ModelExecutorSuite.PrepareWordCounter]),
-      trainer = Some(classOf[ModelExecutorSuite.AverageTrainer]),
-      scoreExtractor = Some(classOf[ScoreProducerSuite.DoublingExtractor]),
-      scorer = Some(classOf[ScoreProducerSuite.UpperCaseScorer])
+      preparerClass = Some(classOf[ModelExecutorSuite.PrepareWordCounter]),
+      trainerClass = Some(classOf[ModelExecutorSuite.AverageTrainer]),
+      scoreExtractorClass = Some(classOf[ScoreProducerSuite.DoublingExtractor]),
+      scorerClass = Some(classOf[ScoreProducerSuite.UpperCaseScorer])
     )
 
     val prepareRequest: ExpressDataRequest = new ExpressDataRequest(0, Long.MaxValue,
@@ -386,46 +388,46 @@ class ModelExecutorSuite extends KijiSuite {
         name = "prepare-model-environment",
         version = "1.0",
         prepareEnvironment = Some(PrepareEnvironment(
-          inputConfig = KijiInputSpec(
+          inputSpec = KijiInputSpec(
             inputUri.toString,
             dataRequest = prepareRequest,
             fieldBindings = Seq(
               FieldBinding(tupleFieldName = "word", storeFieldName = "family:column1"))
           ),
-          outputConfig = KijiOutputSpec(
+          outputSpec = KijiOutputSpec(
             tableUri = prepareOutputUri.toString,
             fieldBindings = Seq(
               FieldBinding(tupleFieldName = "size", storeFieldName = "family:column"))
           ),
-          kvstores = Seq()
+          keyValueStoreSpecs = Seq()
         )),
         trainEnvironment = Some(TrainEnvironment(
-          inputConfig = KijiInputSpec(
+          inputSpec = KijiInputSpec(
             prepareOutputUri.toString,
             dataRequest = trainRequest,
             fieldBindings = Seq(
               FieldBinding(tupleFieldName = "word", storeFieldName = "family:column"))
           ),
-          outputConfig = KijiOutputSpec(
+          outputSpec = KijiOutputSpec(
             trainOutputUri.toString,
             fieldBindings = Seq(
               FieldBinding(tupleFieldName = "avgString", storeFieldName = "family:column1"))
           ),
-          kvstores = Seq()
+          keyValueStoreSpecs = Seq()
         )),
         scoreEnvironment = Some(ScoreEnvironment(
-          inputConfig = KijiInputSpec(
+          inputSpec = KijiInputSpec(
             trainOutputUri.toString,
             dataRequest = scoreRequest,
             fieldBindings = Seq(
               FieldBinding(tupleFieldName = "field", storeFieldName = "family:column1"))
           ),
-          outputConfig = KijiSingleColumnOutputSpec(
+          outputSpec = KijiSingleColumnOutputSpec(
             trainOutputUri.toString,
             "family:column2"
           ),
-          kvstores = Seq(
-              KVStore(
+          keyValueStoreSpecs = Seq(
+              KeyValueStoreSpec(
                   storeType = "AVRO_KV",
                   name = "side_data",
                   properties = Map(
@@ -461,7 +463,6 @@ class ModelExecutorSuite extends KijiSuite {
       }
     }
     kiji.release()
-
   }
 }
 
