@@ -172,13 +172,13 @@ class ModelEnvironmentSuite extends FunSuite {
 
     // Prepare, extract, train and score environments to use in tests.
     val prepareEnv = PrepareEnvironment(
-        inputSpec,
-        outputSpec,
+        Map("input" -> inputSpec),
+        Map("output" -> outputSpec),
         Seq(KeyValueStoreSpec("AVRO_KV", "storename", Map("path" -> "/some/great/path")))
     )
     val trainEnv = TrainEnvironment(
-      inputSpec,
-      outputSpec,
+      Map("input" -> inputSpec),
+      Map("output" -> outputSpec),
       Seq(KeyValueStoreSpec("AVRO_KV", "storename", Map("path" -> "/some/great/path")))
     )
     val scoreEnv = ScoreEnvironment(

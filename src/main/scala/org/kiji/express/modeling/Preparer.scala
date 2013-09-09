@@ -75,6 +75,6 @@ trait Preparer
    * @return true if job succeeds, false otherwise.
    */
   def prepare(
-      input: Source,
-      output: Source): Boolean
+      input: Map[String, Source],
+      output: Map[String, Source]): Boolean
 }
