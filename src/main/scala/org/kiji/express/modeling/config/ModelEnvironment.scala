@@ -375,6 +375,15 @@ object ModelEnvironment {
   }
 
   /**
+   * Wrapper function for validating the input specification map for the prepare and train phase.
+   * @param inputSpecs the map of [[org.kiji.express.modeling.config.InputSpec]] to validate.
+   * @return an optional ValidationException if there are errors encountered.
+   */
+  def validateInputSpecs(inputSpecs: Map[String, InputSpec]): Seq[ValidationException] = {
+    inputSpecs.mapValues(spec => validateInputSpec(spec)).values.toSeq.flatten
+  }
+
+  /**
    * Verifies that the InputSpec of the train or prepare phase is valid.
    *
    * @param inputSpec to validate.
@@ -395,6 +404,15 @@ object ModelEnvironment {
         Seq(new ValidationException(error))
       }
     }
+  }
+
+  /**
+   * Wrapper function for validating the output specification map for the prepare and train phase.
+   * @param outputSpecs the map of [[org.kiji.express.modeling.config.OutputSpec]] to validate.
+   * @return an optional ValidationException if there are errors encountered.
+   */
+  def validateOutputSpecs(outputSpecs: Map[String, OutputSpec]): Seq[ValidationException] = {
+    outputSpecs.mapValues(spec => validateOutputSpec(spec)).values.toSeq.flatten
   }
 
   /**
@@ -429,8 +447,8 @@ object ModelEnvironment {
    *     prepare phase.
    */
   def validatePrepareEnv(prepareEnvironment: PrepareEnvironment): Seq[ValidationException] = {
-    val inputSpecErrors = validateInputSpec(prepareEnvironment.inputSpec)
-    val outputSpecErrors = validateOutputSpec(prepareEnvironment.outputSpec)
+    val inputSpecErrors = validateInputSpecs(prepareEnvironment.inputSpec)
+    val outputSpecErrors = validateOutputSpecs(prepareEnvironment.outputSpec)
     val kvStoreErrors = validateKvStores(prepareEnvironment.keyValueStoreSpecs)
 
     inputSpecErrors ++ outputSpecErrors ++ kvStoreErrors
@@ -444,8 +462,8 @@ object ModelEnvironment {
    *     prepare phase.
    */
   def validateTrainEnv(trainEnvironment: TrainEnvironment): Seq[ValidationException] = {
-    val inputSpecErrors = validateInputSpec(trainEnvironment.inputSpec)
-    val outputSpecErrors = validateOutputSpec(trainEnvironment.outputSpec)
+    val inputSpecErrors = validateInputSpecs(trainEnvironment.inputSpec)
+    val outputSpecErrors = validateOutputSpecs(trainEnvironment.outputSpec)
     val kvStoreErrors = validateKvStores(trainEnvironment.keyValueStoreSpecs)
 
     inputSpecErrors ++ outputSpecErrors ++ kvStoreErrors

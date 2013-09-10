@@ -348,12 +348,12 @@ protocol Modeling {
     /**
      * Defines the input data source that the prepare phase uses. Required.
      */
-    AvroInputSpec input_spec;
+    map<AvroInputSpec> input_spec;
 
     /**
      * Defines the output data source that the prepare phase uses. Required.
      */
-    AvroOutputSpec output_spec;
+    map<AvroOutputSpec> output_spec;
 
     /**
      * The KVStores needed during the prepare phase. The default value of this field is the empty
@@ -372,12 +372,12 @@ protocol Modeling {
     /**
      * Defines the input data source that the train phase uses. Required.
      */
-    AvroInputSpec input_spec;
+    map<AvroInputSpec> input_spec;
 
     /**
      * Defines the output data sources that the train phase uses. Required.
      */
-    AvroOutputSpec output_spec;
+    map<AvroOutputSpec> output_spec;
 
     /**
      * The KVStores needed during the train phase. The default value of this field is the empty
