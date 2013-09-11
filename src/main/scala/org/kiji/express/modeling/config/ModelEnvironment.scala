@@ -397,7 +397,9 @@ object ModelEnvironment {
 
         fieldBindingErrors ++ dataRequestErrors
       }
-      // TODO(EXP-161): Accept inputs from multiple source types.
+      case textSpecification: TextSourceSpec => {
+        Seq()
+      }
       case _ => {
         val error = "Unsupported InputSpec type: %s".format(inputSpec.getClass)
 
@@ -429,6 +431,9 @@ object ModelEnvironment {
       case kijiSingleColumnSpec: KijiSingleColumnOutputSpec => {
         validateKijiColumnName(kijiSingleColumnSpec.outputColumn)
             .toSeq
+      }
+      case textSpecification: TextSourceSpec => {
+        Seq()
       }
       // TODO(EXP-161): Accept outputs from multiple source types.
       case _ => {
