@@ -19,7 +19,7 @@
 
 package org.kiji.express.modeling.lib
 
-import org.kiji.express.KijiSuite
+import org.kiji.express.{EntityId, KijiSuite}
 import org.kiji.express.util.Resources._
 import org.kiji.schema.avro.TableLayoutDesc
 import org.kiji.schema._
@@ -32,13 +32,21 @@ import org.kiji.express.modeling.config.ExpressColumnRequest
 import org.kiji.express.modeling.framework.ModelExecutor
 import org.kiji.express.modeling.config.KijiInputSpec
 import org.kiji.express.modeling.config.ExpressDataRequest
+import org.apache.commons.io.FileUtils
+import java.io.File
 
 /**
  * Tests the Linear Regression Trainer.
  */
 class LMTrainerSuite extends KijiSuite {
+  /**
+   * Tests that LMTrainer can calculate the equation for line y = x.
+   */
   test("A Linear Regression trainer works correctly") {
     val inputTable: String = "two-double-columns.json"
+    val paramsFile: String = "src/test/resources/sources/LRparams"
+    val outputParams: String = "src/test/resources/sources/LROutput"
+
     val testLayoutDesc: TableLayoutDesc = layout(inputTable).getDesc
     testLayoutDesc.setName("lr_table")
 
@@ -47,17 +55,14 @@ class LMTrainerSuite extends KijiSuite {
       .withRow("row1")
       .withFamily("family")
       .withQualifier("column1").withValue(0.0)
-      .withFamily("family")
       .withQualifier("column2").withValue(0.0)
       .withRow("row2")
       .withFamily("family")
       .withQualifier("column1").withValue(1.0)
-      .withFamily("family")
       .withQualifier("column2").withValue(1.0)
       .withRow("row3")
       .withFamily("family")
       .withQualifier("column1").withValue(2.0)
-      .withFamily("family")
       .withQualifier("column2").withValue(2.0)
       .build()
 
@@ -86,12 +91,12 @@ class LMTrainerSuite extends KijiSuite {
                     FieldBinding(tupleFieldName = "target", storeFieldName = "family:column2"))
             ),
             "parameters" -> TextSourceSpec(
-              path = "src/test/resources/sources/LRparams"
+              path = paramsFile
             )
           ),
           outputSpec = Map(
             "parameters" -> TextSourceSpec(
-              path = "src/test/resources/sources/LRparams"
+              path = outputParams
             )),
           keyValueStoreSpecs = Seq()
         ))
@@ -111,5 +116,8 @@ class LMTrainerSuite extends KijiSuite {
       assert(modelExecutor.runTrainer())
     }
     kiji.release()
+    val lines = scala.io.Source.fromFile(outputParams + "/part-00000").mkString
+    println(lines.split("""\s+""").toSeq)
+    FileUtils.deleteDirectory(new File(outputParams))
   }
 }

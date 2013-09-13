@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory
 
 @ApiAudience.Private
 @ApiStability.Experimental
-final class LMTool extends Tool{
+final class LMTool extends Tool {
 
   override def run(args: Array[String]): Int = {
     val datasetTableURI: String = args(0)

@@ -38,6 +38,13 @@ final case class LMTrainer() extends Trainer {
     attributes.toIndexedSeq
   }
 
+  def errorDistance(param1: IndexedSeq[Double], param2: IndexedSeq[Double]): Double = {
+    math.sqrt(param1.zip(param2).map {
+      case (t1: Double, t2: Double) => math.pow(t1 - t2, 2)
+    }
+    .reduce(_ + _))
+  }
+
   /**
    *
    * @param thetas is the source containing the currently calculated parameters for linear
@@ -45,10 +52,10 @@ final case class LMTrainer() extends Trainer {
    * @return an ordered sequence of doubles representing the thetas.
    */
   def vectorizeParameters(thetas: TextLine): IndexedSeq[Double] = {
-    thetas.readAtSubmitter[String]
-        .map((line: String) => {
-          println("Params: " + line)
-          val lineComponents = line.split("\\|")
+    thetas.readAtSubmitter[(Long, String)]
+        .map((entry: (Long, String)) => {
+          val (lineNum, line) = entry
+          val lineComponents = line.split("\\s+")
           (lineComponents(0).toInt, lineComponents(1).toDouble)
         })
         .sortWith((a,b) => a._1.compareTo(b._1) < 0)
@@ -57,22 +64,21 @@ final case class LMTrainer() extends Trainer {
   }
 
   class LMJob (input: Map[String, Source], output: Map[String, Source],
-      parameters:IndexedSeq[Double], numFeatures:Int = 1, learningRate: Double = 0.2, epsilon: Double = 0.2,
-      maxIterations: Int = 10) extends TrainerJob {
-    val datasetSource:KijiSource = input.getOrElse("dataset", null).asInstanceOf[KijiSource]
-
-    datasetSource.mapTo(('attributes, 'target) -> 'gradient) {
-      dataPoint: (KijiSlice[Double], KijiSlice[Double]) => {
-        // X
-        val attributes: IndexedSeq[Double] = vectorizeDataPoint(dataPoint._1)
-        // y
-        val target: Double = dataPoint._2.getFirstValue()
-        // y - (theta)'(X)
-        val delta: Double = target - parameters.zip(attributes).map(x => x._1 * x._2).reduce(_+_)
-        // TODO: May need to convert this into a tuple (attributes(0), attributes(1),......)
-        attributes.map(x => x * delta)
-      }
-    }
+      val parameters:IndexedSeq[Double], numFeatures:Int = 1, val learningRate: Double = 0.25)
+      extends TrainerJob {
+    input.getOrElse("dataset", null)
+        .mapTo(('attributes, 'target) -> 'gradient) {
+          dataPoint: (KijiSlice[Double], KijiSlice[Double]) => {
+            // X
+            val attributes: IndexedSeq[Double] = vectorizeDataPoint(dataPoint._1)
+            // y
+            val target: Double = dataPoint._2.getFirstValue()
+            // y - (theta)'(X)
+            val delta: Double = target - parameters.zip(attributes).map(x => x._1 * x._2).reduce(_+_)
+            // TODO: May need to convert this into a tuple (attributes(0), attributes(1),......)
+            attributes.map(x => x * delta)
+          }
+        }
     // index thetas by position
     .flatMapTo('gradient -> ('index, 'indexedGradient)) {
       gradient: IndexedSeq[Double] => gradient.zipWithIndex.map{ x =>(x._2, x._1) }
@@ -104,12 +110,24 @@ final case class LMTrainer() extends Trainer {
   override def train(input: Map[String, Source], output: Map[String, Source]): Boolean = {
     // Read the parameters (thetas) from a text file on hdfs and convert them into a sequence
     // of doubles that can be consumed by a job.
-    val parameterSource:TextLine = input.getOrElse("parameters", null).asInstanceOf[TextLine]
-    val parameters:IndexedSeq[Double] = vectorizeParameters(parameterSource)
-
-    println(parameters)
-    new LMJob(input, output, parameters).run
-
+    var parameterSource:TextLine = input.getOrElse("parameters", null).asInstanceOf[TextLine]
+    var outputSource: TextLine = output.getOrElse("parameters", null).asInstanceOf[TextLine]
+    // TODO EXP-203 When EXP-203 is completed, change this to an appropriate default.
+    val max_iter = 1
+    val epsilon = 0.001
+    var previousParms: IndexedSeq[Double] = null
+    var dist: Double = Double.MaxValue
+    var index = 0
+    while (index < max_iter && dist > epsilon) {
+      val parameters:IndexedSeq[Double] = vectorizeParameters(parameterSource)
+      if (previousParms != null) {
+        dist = errorDistance(previousParms, parameters)
+      }
+      previousParms = parameters
+      new LMJob(input, output, parameters).run
+      parameterSource = outputSource
+    }
+    // TODO report - number of iterations, error, etc.
     true
   }
 }
