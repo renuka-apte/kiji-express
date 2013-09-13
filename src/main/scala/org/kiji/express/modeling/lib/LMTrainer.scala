@@ -20,12 +20,13 @@
 package org.kiji.express.modeling.lib
 
 import org.kiji.express.modeling.{KeyValueStore, Trainer}
-import com.twitter.scalding.{Tsv, TextLine, Source}
+import com.twitter.scalding.{TupleConversions, Tsv, TextLine, Source}
 import org.kiji.express.KijiSlice
 import collection.mutable.ArrayBuffer
 import org.kiji.express.flow.KijiSource
 
-class LMTrainer(numFeatures:Int, learningRate: Double, epsilon: Double, maxIterations: Int) extends Trainer {
+class LMTrainer(numFeatures:Int, learningRate: Double, epsilon: Double, maxIterations: Int)
+    extends Trainer {
   /**
    *
    * @param attr
@@ -57,21 +58,19 @@ class LMTrainer(numFeatures:Int, learningRate: Double, epsilon: Double, maxItera
 
   class LMJob (input: Map[String, Source], output: Map[String, Source],
       parameters:IndexedSeq[Double]) extends TrainerJob {
-
     val datasetSource:KijiSource = input.getOrElse("dataset", null).asInstanceOf[KijiSource]
 
     datasetSource.mapTo(('attributes, 'target) -> 'gradient) {
-      case (xvalue: KijiSlice[Double], yvalue: KijiSlice[Double]) => {
-        val attributes: IndexedSeq[Double] = vectorizeDataPoint(xvalue)
-        val target: Double = yvalue.getFirstValue()
-
+      dataPoint: (KijiSlice[Double], KijiSlice[Double]) => {
+        // X
+        val attributes: IndexedSeq[Double] = vectorizeDataPoint(dataPoint._1)
+        // y
+        val target: Double = dataPoint._2.getFirstValue()
         // y - (theta)'(X)
         val delta: Double = target - parameters.zip(attributes).map(x => x._1 * x._2).reduce(_+_)
-
         // TODO: May need to convert this into a tuple (attributes(0), attributes(1),......)
         attributes.map(x => x * delta)
       }
-      case _ => throw new IllegalArgumentException("Mismatch in type of dataset/target.")
     }
     // index thetas by position
     .flatMapTo('gradient -> ('index, 'indexedGradient)) {
