@@ -25,7 +25,7 @@ import org.kiji.express.KijiSlice
 import collection.mutable.ArrayBuffer
 import org.kiji.express.flow.KijiSource
 
-class LMTrainer(numFeatures:Int, learningRate: Double, epsilon: Double, maxIterations: Int) extends Trainer {
+final case class LMTrainer() extends Trainer with TupleConversions {
   /**
    *
    * @param attr
@@ -44,10 +44,11 @@ class LMTrainer(numFeatures:Int, learningRate: Double, epsilon: Double, maxItera
    *    regression.
    * @return an ordered sequence of doubles representing the thetas.
    */
-  def vectorizeParameters(thetas: Source): IndexedSeq[Double] = {
+  def vectorizeParameters(thetas: TextLine): IndexedSeq[Double] = {
     thetas.readAtSubmitter[String]
         .map((line: String) => {
-          val lineComponents = line.split("\t")
+          println("Params: " + line)
+          val lineComponents = line.split("\\|")
           (lineComponents(0).toInt, lineComponents(1).toDouble)
         })
         .sortWith((a,b) => a._1.compareTo(b._1) < 0)
@@ -56,7 +57,8 @@ class LMTrainer(numFeatures:Int, learningRate: Double, epsilon: Double, maxItera
   }
 
   class LMJob (input: Map[String, Source], output: Map[String, Source],
-      parameters:IndexedSeq[Double]) extends TrainerJob {
+      parameters:IndexedSeq[Double], numFeatures:Int = 1, learningRate: Double = 0.2, epsilon: Double = 0.2,
+      maxIterations: Int = 10) extends TrainerJob {
 
     val datasetSource:KijiSource = input.getOrElse("dataset", null).asInstanceOf[KijiSource]
 
@@ -107,6 +109,7 @@ class LMTrainer(numFeatures:Int, learningRate: Double, epsilon: Double, maxItera
     val parameterSource:TextLine = input.getOrElse("parameters", null).asInstanceOf[TextLine]
     val parameters:IndexedSeq[Double] = vectorizeParameters(parameterSource)
 
+    println(parameters)
     new LMJob(input, output, parameters).run
 
     true
