@@ -54,24 +54,24 @@ class ModelLifecycleTool extends Tool {
   override def run(args: Array[String]): Int = {
     // TODO EXP-204, pass the mode argument to the model executor
     val (mode: Mode, jobArgs: Args) = parseModeArgs(args)
-    Mode.mode = mode
 
-    val modelDefinitionPath: String = jobArgs("model-def")
-    val modelEnvironmentPath: String = jobArgs("model-env")
+    val modelDefinition: ModelDefinition = ModelDefinition.fromJsonFile(jobArgs("model-def"))
+    val modelEnvironment: ModelEnvironment = ModelEnvironment.fromJsonFile(jobArgs("model-env"))
 
     val modelExecutor = ModelExecutor(
-        ModelDefinition.fromJsonFile(modelDefinitionPath),
-        ModelEnvironment.fromJsonFile(modelEnvironmentPath),
+        modelDefinition,
+        modelEnvironment,
         jobArgs,
+        mode,
         getConf)
 
     val skipPrepare: Boolean = jobArgs.boolean("skip-prepare")
     val skipTrain: Boolean = jobArgs.boolean("skip-train")
     val skipScore: Boolean = jobArgs.boolean("skip-score")
 
-    (skipPrepare || modelExecutor.runPreparer()) &&
-        (skipTrain || modelExecutor.runTrainer()) &&
-        (skipScore || modelExecutor.runScorer()) match {
+    (skipPrepare || modelDefinition.preparerClass.isEmpty || modelExecutor.runPreparer()) &&
+        (skipTrain || modelDefinition.trainerClass.isEmpty ||  modelExecutor.runTrainer()) &&
+        (skipScore || modelDefinition.scorerClass.isEmpty || modelExecutor.runScorer()) match {
       case true => 0
       case false => 1
     }
