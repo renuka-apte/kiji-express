@@ -19,12 +19,12 @@
 
 package org.kiji.express.modeling.lib
 
-import com.twitter.scalding.RichPipe
+import com.twitter.scalding.{FieldConversions, RichPipe}
 import cascading.pipe.Pipe
 import cascading.tuple.Fields
 import org.kiji.express.repl.Implicits.pipeToRichPipe
 
-class RecommendationPipe(private val pipe: Pipe) extends RichPipe(pipe) {
+class RecommendationPipe(private val pipe: Pipe) extends RichPipe(pipe) with FieldConversions {
   /**
    * This function takes profile information (e.g. a history of purchases) or order data and outputs
    * smaller subsets of co-occuring items. If the minSetSize and maxSetSize is 2, it will create 
@@ -52,6 +52,20 @@ class RecommendationPipe(private val pipe: Pipe) extends RichPipe(pipe) {
         }
         .map(toFields -> toFields) { itemSets: List[T] => itemSets.mkString(",") }
   }
+
+  /**
+   * This function joins every group in the pipe with the size of that group. If the fromFields
+   * are set to ALL, then it will count the number of rows.
+   *
+   * @param fieldSpec a mapping from the fields on which to group to the output field name.
+   * @return a pipe containing the groups, along with a field for their size.
+   */
+  def joinWithNormalizer(fieldSpec : (Fields, Fields)) : Pipe = {
+    val (fromFields, toField) = fieldSpec
+    val total = groupBy(fromFields) { _.size(toField) }
+    crossWithTiny(total)
+  }
+
 
   def filterBySupport[T](fieldSpec: (Fields, Fields),
       supportThreshold: Double): RichPipe = {

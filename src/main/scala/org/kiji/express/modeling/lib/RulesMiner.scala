@@ -24,6 +24,4 @@ import com.twitter.scalding.TupleConversions
 import org.kiji.express.modeling.impl.CommandLineArgs
 
 trait RulesMiner extends CommandLineArgs with TupleConversions {
-
-  class
 }
