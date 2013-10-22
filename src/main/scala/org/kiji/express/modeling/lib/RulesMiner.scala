@@ -19,9 +19,11 @@
 
 package org.kiji.express.modeling.lib
 
-import org.kiji.express.modeling.impl.CommandLineArgs
 import com.twitter.scalding.TupleConversions
+
+import org.kiji.express.modeling.impl.CommandLineArgs
 
 trait RulesMiner extends CommandLineArgs with TupleConversions {
 
+  class
 }
