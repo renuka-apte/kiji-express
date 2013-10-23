@@ -35,7 +35,7 @@ import org.kiji.schema.layout.KijiTableLayout
 import org.kiji.schema.layout.KijiTableLayouts
 
 @RunWith(classOf[JUnitRunner])
-class KijiPipeSuite extends KijiSuite {
+class KijiPipeSuite extends KijiSuite with FieldConversions {
   /** Table layout to use for tests. */
   val layout: KijiTableLayout = layout(KijiTableLayouts.SIMPLE_TWO_COLUMNS)
 

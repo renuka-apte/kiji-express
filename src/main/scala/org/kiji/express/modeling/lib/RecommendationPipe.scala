@@ -19,12 +19,12 @@
 
 package org.kiji.express.modeling.lib
 
-import com.twitter.scalding.{FieldConversions, RichPipe}
+import com.twitter.scalding._
 import cascading.pipe.Pipe
 import cascading.tuple.Fields
-import org.kiji.express.repl.Implicits.pipeToRichPipe
+import  org.kiji.express.repl.Implicits._
 
-class RecommendationPipe(private val pipe: Pipe) extends RichPipe(pipe) with FieldConversions {
+class RecommendationPipe(val pipe: Pipe) {
   /**
    * This function takes profile information (e.g. a history of purchases) or order data and outputs
    * smaller subsets of co-occuring items. If the minSetSize and maxSetSize is 2, it will create 
@@ -46,7 +46,7 @@ class RecommendationPipe(private val pipe: Pipe) extends RichPipe(pipe) with Fie
       minSetSize: Int = 2,
       maxSetSize: Int = 5): RichPipe = {
     val (fromFields, toFields) = fieldSpec
-    this
+    pipe
         .flatMapTo(fromFields -> toFields) {
           basket: List[T] => (minSetSize to maxSetSize).flatMap(basket.combinations)
         }
@@ -54,21 +54,56 @@ class RecommendationPipe(private val pipe: Pipe) extends RichPipe(pipe) with Fie
   }
 
   /**
-   * This function joins every group in the pipe with the size of that group. If the fromFields
-   * are set to ALL, then it will count the number of rows.
+   * This function joins every row in the pipe with the size of the group it belongs to. The
+   * parameter fromFields determines the criteria for the group. If fromFields is set to ALL,
+   * then it will join with the total number of rows.
    *
    * @param fieldSpec a mapping from the fields on which to group to the output field name.
    * @return a pipe containing the groups, along with a field for their size.
    */
-  def joinWithNormalizer(fieldSpec : (Fields, Fields)) : Pipe = {
+  def joinWithGroupCount(fieldSpec : (Fields, Fields)) : RichPipe = {
     val (fromFields, toField) = fieldSpec
-    val total = groupBy(fromFields) { _.size(toField) }
-    crossWithTiny(total)
+    val total = pipe.groupBy(fromFields) { _.size(toField) }
+    pipe.crossWithTiny(total)
   }
 
-
-  def filterBySupport[T](fieldSpec: (Fields, Fields),
-      supportThreshold: Double): RichPipe = {
-
+  /**
+   * Filter itemsets (which are N-grams of entities that occur together in some context, e.g.
+   * products in an order) by a threshold value called supportThreshold. This is usually used to
+   * filter only "important" occurrences. This is typically expressed as a fraction, rather than
+   * an absolute value. The denominator for this fraction needs to be provided either as a constant
+   * or a pipe and a field within it.
+   *
+   * @param itemsetField is the field in this pipe that contains the co-occurring N-grams.
+   * @param normalizingPipe is a pipe that may contain the normalizing constant. Optional.
+   * @param normalizingConstant is a normalizing constant.
+   * @param normalizingField is either the name of the field in the normalizing pipe that contains
+   *     the normalizing constant or is the name of the field to insert into the pipe if you have
+   *     provided a normalizingConstant.
+   * @param supportThreshold is the cut-off value for filtering the itemsets of importance.
+   * @param numReducers is used if you have more than 1 reducer available to run this function.
+   * @return the pipe containing itemsets that satisfy the supportThreshold.
+   */
+  def filterBySupport(itemsetField: Fields,
+      normalizingPipe: Option[Pipe],
+      normalizingConstant: Option[Double],
+      normalizingField: Fields,
+      supportThreshold: Double,
+      numReducers: Int = 1): RichPipe = {
+    // Exactly one of normalizingConstant and normalizingPipe must be supplied to this function
+    require (normalizingConstant.isDefined ^ normalizingPipe.isDefined)
+    pipe.groupBy(itemsetField) { _.reducers(numReducers).size('itemSetFrequency) }
+    if (normalizingConstant.isDefined) {
+      pipe.insert(normalizingField, normalizingConstant.get)
+    } else {
+      pipe.crossWithTiny(normalizingPipe.get)
+    }
+    pipe
+        .filter('itemSetFrequency, normalizingField) {
+          fields: (Long, Long) => {
+            val (frequency, normalizer) = fields
+            frequency/normalizer > supportThreshold
+          }
+        }
   }
 }

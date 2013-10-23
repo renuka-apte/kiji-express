@@ -25,6 +25,7 @@ import com.twitter.scalding.Mode
 
 import org.kiji.express.flow.KijiPipe
 import org.kiji.express.flow.KijiSource
+import org.kiji.express.modeling.lib.RecommendationPipe
 
 /**
  * PipeConversions contains implicit conversions necessary for KijiExpress that are not included in
@@ -54,4 +55,14 @@ private[express] trait PipeConversions {
       source: KijiSource)(
       implicit flowDef: FlowDef,
       mode: Mode): KijiPipe = new KijiPipe(source.read(flowDef, mode))
+
+  /**
+   * Converts a Cascading Pipe to an Express Recommendation Pipe. This method permits implicit
+   * conversions from Pipe to RecommendationPipe.
+   *
+   * @param pipe to convert to a RecommendationPipe.
+   * @return a RecommendationPipe wrapping the specified Pipe.
+   */
+  implicit def pipeToRecommendationPipe(pipe: Pipe): RecommendationPipe =
+    new RecommendationPipe(pipe)
 }
